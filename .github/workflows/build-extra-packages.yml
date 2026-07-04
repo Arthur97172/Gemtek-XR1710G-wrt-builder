@@ -49,36 +49,35 @@ jobs:
     - name: Configure
       run: |
         cd openwrt
-        cat > .config << CONFIGEOF
-CONFIG_TARGET_airoha=y
-CONFIG_TARGET_airoha_an7581=y
-CONFIG_TARGET_MULTI_PROFILE=y
-CONFIG_TARGET_DEVICE_airoha_an7581_DEVICE_econet_xr1710g-ubi=y
-CONFIG_DEVEL=y
-CONFIG_PACKAGE_luci-app-airoha-flowsense=y
-CONFIG_PACKAGE_luci-app-airoha-npu=y
-CONFIG_PACKAGE_luci-app-mlo=y
-CONFIG_PACKAGE_luci-app-w1700k-fancontrol=y
-CONFIG_PACKAGE_luci-app-netspeedtest=y
-CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_luci-mod-network=y
-CONFIG_PACKAGE_iperf3=y
-CONFIG_PACKAGE_curl=y
-CONFIG_PACKAGE_librespeed-go=y
-CONFIG_PACKAGE_wpad-basic-mbedtls=y
-CONFIG_PACKAGE_kmod-mt7996e=y
-CONFIG_PACKAGE_kmod-mt7996-firmware=y
-CONFIG_PACKAGE_uboot-envtools=y
-CONFIG_PACKAGE_fitblk=y
-CONFIG_PACKAGE_kmod-i2c-an7581=y
-CONFIG_PACKAGE_kmod-hwmon-nct7802=y
-CONFIG_PACKAGE_kmod-phy-rtl8261n=y
-CONFIG_PACKAGE_airoha-en7581-mt7996-npu-firmware=y
-CONFIG_PACKAGE_kmod-tcp-bbr=y
-CONFIG_VERSIONOPT=y
-CONFIG_VERSION_DIST="iStoreOS"
-CONFIG_VERSION_REPO="https://mirrors.cernet.edu.cn/openwrt/releases/%V"
-CONFIGEOF
+        rm -f .config
+        echo CONFIG_TARGET_airoha=y >> .config
+        echo CONFIG_TARGET_airoha_an7581=y >> .config
+        echo CONFIG_TARGET_MULTI_PROFILE=y >> .config
+        echo CONFIG_TARGET_DEVICE_airoha_an7581_DEVICE_econet_xr1710g-ubi=y >> .config
+        echo CONFIG_DEVEL=y >> .config
+        echo CONFIG_PACKAGE_luci-app-airoha-flowsense=y >> .config
+        echo CONFIG_PACKAGE_luci-app-airoha-npu=y >> .config
+        echo CONFIG_PACKAGE_luci-app-mlo=y >> .config
+        echo CONFIG_PACKAGE_luci-app-w1700k-fancontrol=y >> .config
+        echo CONFIG_PACKAGE_luci-app-netspeedtest=y >> .config
+        echo CONFIG_PACKAGE_luci-base=y >> .config
+        echo CONFIG_PACKAGE_luci-mod-network=y >> .config
+        echo CONFIG_PACKAGE_iperf3=y >> .config
+        echo CONFIG_PACKAGE_curl=y >> .config
+        echo CONFIG_PACKAGE_librespeed-go=y >> .config
+        echo CONFIG_PACKAGE_wpad-basic-mbedtls=y >> .config
+        echo CONFIG_PACKAGE_kmod-mt7996e=y >> .config
+        echo CONFIG_PACKAGE_kmod-mt7996-firmware=y >> .config
+        echo CONFIG_PACKAGE_uboot-envtools=y >> .config
+        echo CONFIG_PACKAGE_fitblk=y >> .config
+        echo CONFIG_PACKAGE_kmod-i2c-an7581=y >> .config
+        echo CONFIG_PACKAGE_kmod-hwmon-nct7802=y >> .config
+        echo CONFIG_PACKAGE_kmod-phy-rtl8261n=y >> .config
+        echo CONFIG_PACKAGE_airoha-en7581-mt7996-npu-firmware=y >> .config
+        echo CONFIG_PACKAGE_kmod-tcp-bbr=y >> .config
+        echo CONFIG_VERSIONOPT=y >> .config
+        echo CONFIG_VERSION_DIST=\"iStoreOS\" >> .config
+        echo CONFIG_VERSION_REPO=\"https://mirrors.cernet.edu.cn/openwrt/releases/%V\" >> .config
         make defconfig
 
     - name: Download
