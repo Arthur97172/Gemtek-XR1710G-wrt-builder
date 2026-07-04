@@ -49,7 +49,7 @@ jobs:
     - name: Configure
       run: |
         cd openwrt
-        cat > .config << 'CONFIGEOF'
+        cat > .config << CONFIGEOF
 CONFIG_TARGET_airoha=y
 CONFIG_TARGET_airoha_an7581=y
 CONFIG_TARGET_MULTI_PROFILE=y
