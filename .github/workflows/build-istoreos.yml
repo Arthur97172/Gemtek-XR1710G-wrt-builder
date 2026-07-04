@@ -16,7 +16,7 @@ on:
    - cron: 0 16 * * *
 
 env:
-  REPO_URL: https://github.com/hx801217/istoreos
+  REPO_URL: https://github.com/YYH2913/openwrt
   FEEDS_CONF: feeds.conf
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -31,7 +31,7 @@ jobs:
     strategy:
       matrix:
         REPO_BRANCH:
-          - istoreos-24.10
+          - xr1710g-6.18
         ARCHITECTURE:
           - xr1710g
         os:
@@ -84,9 +84,6 @@ jobs:
         ccache: 'true'
         mixkey: ${{ matrix.os }}-${{ matrix.ARCHITECTURE }}-${{ matrix.REPO_BRANCH }}-v2
         prefix: ${{ github.workspace }}/openwrt
-
-    - name: 清理过期缓存补丁
-      run: rm -f openwrt/package/boot/uboot-airoha/patches/2*.patch
 
     - name: 加载自定义 feeds
       env:
@@ -175,7 +172,7 @@ jobs:
         echo "
         💻 设备: XR1710G (Airoha AN7581)
 
-        📂 源码: ${{ env.REPO_URL }}
+        📂 源码: YYH2913/openwrt (xr1710g-6.18) + iStore feeds
 
         🌳 分支: ${{ matrix.REPO_BRANCH }}
 
