@@ -1,0 +1,221 @@
+name: Build All
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+  schedule:
+   - cron: 0 16 * * *
+
+env:
+  REPO_URL: https://github.com/YYH2913/openwrt
+  REPO_BRANCH: xr1710g-6.18-integration
+  ARCHITECTURE: xr1710g
+  DIY_P1_SH: diy-part1.sh
+  DIY_P2_SH: diy-part2.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - distro: istoreos
+            feeds_conf: feeds-istoreos.conf
+            config_file: .config.istoreos
+            dist_name: iStoreOS
+            dist_tag: istoreos
+            release_title: iStoreOS
+          - distro: openwrt
+            feeds_conf: feeds-openwrt.conf
+            config_file: .config.openwrt
+            dist_name: OpenWrt
+            dist_tag: openwrt
+            release_title: OpenWrt
+          - distro: immortalwrt
+            feeds_conf: feeds-immortalwrt.conf
+            config_file: .config.immortalwrt
+            dist_name: ImmortalWrt
+            dist_tag: immortalwrt
+            release_title: ImmortalWrt
+        os:
+          - ubuntu-22.04
+
+      fail-fast: false
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: 服务器信息
+      run: |
+        echo "------------------------------- CPU -------------------------------"
+        echo "物理数量: $(cat /proc/cpuinfo| grep 'physical id'| sort| uniq| wc -l)"
+        echo "型号: $(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c | xargs)"
+        echo "------------------------------- 内存 -------------------------------"
+        sudo lshw -short -C memory | grep GiB
+        echo "------------------------------- 磁盘 -------------------------------"
+        df -Th
+
+    - name: 初始化编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php \
+          /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/${{ matrix.os }})
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: 克隆源码
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: 缓存构建动作
+      uses: klever1988/cachewrtbuild@main
+      with:
+        ccache: 'true'
+        mixkey: ${{ matrix.os }}-${{ matrix.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ matrix.dist_tag }}-v2
+        prefix: ${{ github.workspace }}/openwrt
+
+    - name: 加载 feeds 配置
+      run: |
+        cp "${{ matrix.feeds_conf }}" openwrt/feeds.conf
+        chmod +x "$DIY_P1_SH"
+        cd openwrt
+        "$GITHUB_WORKSPACE/$DIY_P1_SH"
+
+    - name: 更新 feeds
+      run: cd openwrt && ./scripts/feeds update -a
+
+    - name: 安装 feeds
+      run: cd openwrt && ./scripts/feeds install -a
+
+    - name: 加载配置
+      env:
+        DIST_NAME: ${{ matrix.dist_name }}
+      run: |
+        [ -e files ] && mv files openwrt/files || true
+        [ -e "${{ matrix.config_file }}" ] && cp "${{ matrix.config_file }}" openwrt/.config || echo ".config 未找到，跳过"
+        chmod +x "$DIY_P2_SH"
+        cd openwrt
+        "$GITHUB_WORKSPACE/$DIY_P2_SH"
+
+    - name: SSH
+      uses: P3TERX/ssh2actions@v1.0.0
+      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+    - name: 下载软件包
+      id: package
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: 编译固件
+      id: compile
+      run: |
+        cd openwrt
+        echo "$(nproc) thread compile"
+        make defconfig
+        if ! make olddefconfig; then
+          yes "" | make oldconfig
+        fi
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "FILE_DATE=_$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
+        echo "COMPILED=true" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 磁盘空间
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 上传 bin 目录
+      uses: actions/upload-artifact@v4
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin_${{ matrix.dist_tag }}${{ env.FILE_DATE }}
+        path: openwrt/bin
+
+    - name: 整理固件
+      id: organize
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 上传固件目录
+      uses: actions/upload-artifact@v4
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware_${{ matrix.dist_tag }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: 生成发布标签
+      id: tag
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
+      env:
+        DIST_TITLE: ${{ matrix.release_title }}
+      run: |
+        echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
+        cat > release.txt << 'EOF'
+设备: XR1710G (Airoha AN7581)
+源码: YYH2913/openwrt (xr1710g-6.18-integration)
+分支: xr1710g-6.18-integration
+编译时间: $(date +'%Y年%m月%d日%H时%M分')
+管理地址: 192.168.100.1
+用户名: root
+密码: password
+EOF
+        sed -i "s/\$(date.*)/$(date +'%Y年%m月%d日%H时%M分')/" release.txt
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 发布到 Releases
+      uses: softprops/action-gh-release@v2
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      with:
+        tag_name: ${{ matrix.dist_tag }}_${{ steps.tag.outputs.release_tag }}
+        name: ${{ matrix.release_title }} ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
+
+    - name: 清理运行记录
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh run list --workflow="Build All" --limit 30 --json databaseId --jq '.[].databaseId' | \
+          tail -n +2 | xargs -I {} gh run delete {} --yes || true
+
+    - name: 清理旧 Release
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release list --limit 100 --json tagName,publishedAt --jq '.[] | "\(.tagName)"' | \
+          grep "^${{ matrix.dist_tag }}_" | \
+          tail -n +5 | \
+          xargs -I {} gh release delete {} --yes --cleanup-tag || true
