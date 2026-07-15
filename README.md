@@ -1,40 +1,58 @@
-# iStore OS 固件 | XR1710G (Airoha AN7581)
+# Gemtek XR1710G 固件
 
-[![iStore使用文档](https://img.shields.io/badge/使用文档-iStore%20OS-brightgreen?style=flat-square)](https://doc.linkease.com/zh/guide/istoreos)
+编译配置 for **Airoha AN7581**，支持三种发行版固件同时构建。
 
-![支持设备](https://img.shields.io/badge/支持设备:-blueviolet.svg?style=flat-square) ![XR1710G](https://img.shields.io/badge/XR1710G-blue.svg?style=flat-square)
+[![支持设备](https://img.shields.io/badge/XR1710G-Airoha%20AN7581-blueviolet?style=flat-square)]()
+
+## 固件发行版
+
+| 发行版 | 特色 | 内核 |
+|--------|------|------|
+| **iStoreOS** | 网盘、存储、应用商店 | 6.18 |
+| **OpenWrt 24.10** | 标准上游固件 | 6.18 |
+| **ImmortalWrt 24.10** | 增强插件生态 | 6.18 |
+
+## 设备信息
+
+- **设备:** XR1710G (Gemtek)
+- **SoC:** Airoha AN7581
+- **架构:** airoha / an7581
+- **固件格式:** sysupgrade.itb
 
 ## 默认配置
 
-- IP: `http://192.168.100.1` or `http://iStoreOS.lan/`
+- IP: `http://192.168.100.1` 或 `http://iStoreOS.lan/`
 - 用户名: `root`
 - 密码: `password`
-- 默认第一个网口是 `WAN` 口, 其它都是 `LAN`
-- 如果要修改 `LAN` 口 `IP` , 首页有个内网设置，或者用命令 `quickstart` 修改
-- 北京时间每天 `0:00` 定时编译, `Release` 中只保留最新版本
-- 历史版本在 `Actions` 中选择一个已经运行完成且成功的 `workflow` 在页面底部可以看到 `Artifacts`, `Artifacts` 需要登录 Github 才能下载
+- 第一个网口默认 WAN，其余为 LAN
 
-## 支持设备
+## 编译
 
-| 设备 | SoC | 架构 | 固件格式 |
-|------|-----|------|----------|
-| XR1710G (Gemtek) | Airoha AN7581 | airoha/an7581 | sysupgrade.itb |
+点击 **Actions → Build Firmware → Run workflow** 可手动触发三发行版同时构建，构建完成后自动发布到 Releases。
+
+每个 Release tag 格式: `{dist_tag}_YYYY.MM.DD-HH.MM`
+
+## 文件说明
+
+| 文件 | 用途 |
+|------|------|
+| `feeds-istoreos.conf` | iStoreOS 专属 feeds |
+| `feeds-openwrt.conf` | 标准 OpenWrt feeds |
+| `feeds-immortalwrt.conf` | ImmortalWrt feeds |
+| `.config.istoreos` | iStoreOS 内核配置 |
+| `.config.openwrt` | OpenWrt 内核配置 |
+| `.config.immortalwrt` | ImmortalWrt 内核配置 |
+| `depends/ubuntu-22.04` | 构建依赖 |
+| `diy-part1.sh` | 版本号生成脚本 |
+| `.github/workflows/build.yml` | 三发行版 CI 脚本 |
 
 ## 鸣谢
 
+- [YYH2913/openwrt](https://github.com/YYH2913/openwrt) — XR1710G 设备适配
 - [istoreos](https://github.com/istoreos/istoreos)
-- [P3TERX/Actions-OpenWrt](https://github.com/P3TERX/Actions-OpenWrt)
-- [Microsoft Azure](https://azure.microsoft.com)
-- [GitHub Actions](https://github.com/features/actions)
 - [OpenWrt](https://github.com/openwrt/openwrt)
-- [Lean&#39;s OpenWrt](https://github.com/coolsnowwolf/lede)
-- [tmate](https://github.com/tmate-io/tmate)
-- [mxschmitt/action-tmate](https://github.com/mxschmitt/action-tmate)
-- [csexton/debugger-action](https://github.com/csexton/debugger-action)
-- [Cowtransfer](https://cowtransfer.com)
-- [WeTransfer](https://wetransfer.com/)
-- [Mikubill/transfer](https://github.com/Mikubill/transfer)
+- [ImmortalWrt](https://github.com/immortalwrt/immortalwrt)
+- [P3TERX/Actions-OpenWrt](https://github.com/P3TERX/Actions-OpenWrt)
+- [GitHub Actions](https://github.com/features/actions)
 - [softprops/action-gh-release](https://github.com/softprops/action-gh-release)
-- [ActionsRML/delete-workflow-runs](https://github.com/ActionsRML/delete-workflow-runs)
-- [dev-drprasad/delete-older-releases](https://github.com/dev-drprasad/delete-older-releases)
-- [peter-evans/repository-dispatch](https://github.com/peter-evans/repository-dispatch)
+- [klever1988/cachewrtbuild](https://github.com/klever1988/cachewrtbuild)
