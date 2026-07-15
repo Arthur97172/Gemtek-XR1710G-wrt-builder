@@ -29,7 +29,153 @@
 
 **自动编译：** 每天北京时间 `00:00` 自动触发。
 
-每个 Release tag 格式: `{dist_tag}_YYYY.MM.DD-HH.MM`
+每个 Release tag 格式: `{dist_tag}_YYYY.MM.Dd-HH.MM`
+
+---
+
+## DIY 脚本详解
+
+每个发行版有**完全独立**的脚本，互不影响。脚本放在 `diy-part1.d/` 和 `diy-part2.d/` 目录下，文件名对应发行版：`istoreos.sh` / `openwrt.sh` / `immortalwrt.sh`。
+
+### 执行顺序
+
+```
+diy-part1.d/{distro}.sh   →  feeds update/install 之前运行
+diy-part2.d/{distro}.sh   →  .config 加载之后、make 之前运行
+files/{distro}/           →  make 阶段自动注入固件文件系统
+```
+
+---
+
+### diy-part1.d — 源码预处理
+
+在 `scripts/feeds update` 之前运行，此时源码刚 clone 完毕、feeds.conf 就位。
+
+**典型用途：** 修改版本号、替换源码文件、打补丁。
+
+```bash
+# 示例：修改 version 文件中的时间戳
+date_version=$(date +"%Y%m%d%H")
+sed -i "s/0000000000/${date_version}/g" version
+
+# 示例：替换某个源码文件
+# cp "$GITHUB_WORKSPACE/patches/mt7996.c" openwrt/package/.../mt7996.c
+
+# 示例：给源码打 patch
+# cd openwrt && patch -p1 < "$GITHUB_WORKSPACE/patches/foo.patch"
+```
+
+---
+
+### diy-part2.d — 配置注入与包管理
+
+在 `.config` 加载之后、`make` 之前运行，此时可以读写 `.config` 文件和 `openwrt/` 目录。
+
+#### 场景一：文件注入（自定义固件内置文件）
+
+将文件放到 `files/{distro}/` 目录，编译时自动覆盖固件内的对应路径。
+
+**目录结构示例：**
+```
+files/
+├── istoreos/
+│   └── etc/config/
+│       ├── network          # 自定义网络配置（含 LAN IP）
+│       └── firewall         # 自定义防火墙规则
+└── openwrt/
+    └── etc/config/
+        └── network
+```
+
+**network 模板示例（`files/openwrt/etc/config/network`）：**
+```
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'lan1'
+	list ports 'lan2'
+	list ports 'lan3'
+	list ports 'lan4'
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '${DEFAULT_LAN_IP}'
+	option netmask '255.255.255.0'
+	list ipaddr '${DEFAULT_LAN_IP}/24'
+
+config interface 'wan'
+	option device 'wan'
+	option proto 'dhcp'
+```
+
+**diy-part2.d 中的注入写法：**
+```bash
+cp "$GITHUB_WORKSPACE/files/openwrt/etc/config/network" openwrt/files/etc/config/network
+sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" openwrt/files/etc/config/network
+```
+
+#### 场景二：修改内核选项（.config 覆写）
+
+直接编辑 `.config` 文件（追加或注释掉行）。
+
+```bash
+# 追加：开启 BBR TCP 拥塞控制
+echo 'CONFIG_PACKAGE_kmod-nf-tcp-bbr=y' >> .config
+echo 'CONFIG_PACKAGE_tcpdump=y' >> .config
+
+# 注释掉：禁用不需要的 USB 驱动（减小体积）
+sed -i '/CONFIG_PACKAGE_kmod-usb-ohci/d' .config
+sed -i '/CONFIG_PACKAGE_kmod-usb-uhci/d' .config
+
+# 强制覆盖某个选项（先删后加）
+sed -i '/CONFIG_KERNEL_HZ=/d' .config
+echo 'CONFIG_KERNEL_HZ=1000' >> .config
+```
+
+#### 场景三：修改或追加 package（.config 覆写）
+
+在已加载的 `.config` 基础上增删软件包。包必须先被 feeds install 过才能在 .config 中启用。
+
+```bash
+# 追加预装包（需先确认 feeds install）
+echo 'CONFIG_PACKAGE_curl=y' >> .config
+echo 'CONFIG_PACKAGE_wget-ssl=y' >> .config
+echo 'CONFIG_PACKAGE_luci-app-samba4=y' >> .config
+
+# 移除不需要的包
+sed -i '/CONFIG_PACKAGE_ddns-scripts/d' .config
+sed -i '/CONFIG_PACKAGE_luci-app-wol/d' .config
+sed -i '/CONFIG_PACKAGE_nlbwmon/d' .config
+
+# 全局关闭某个功能的所有依赖
+sed -i '/CONFIG_PACKAGE_p910nd/d' .config
+```
+
+#### 场景四：UCI 默认值（固件首次启动自动应用）
+
+通过 `/etc/uci-defaults/` 注入，固件首次启动时 UCI 会自动执行这些脚本。
+
+```bash
+mkdir -p openwrt/files/etc/uci-defaults
+cat > openwrt/files/etc/uci-defaults/99-custom << 'UCIEOF'
+#!/bin/sh
+uci set network.lan.ipaddr='${DEFAULT_LAN_IP}'
+uci commit network
+uci set system.@system[0].timezone='CST-8'
+uci commit system
+UCIEOF
+sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" \
+  openwrt/files/etc/uci-defaults/99-custom
+```
+
+---
 
 ## 目录结构
 
@@ -37,59 +183,25 @@
 Gemtek-XR1710G-wrt-builder/
 ├── .github/workflows/build.yml        # CI 构建脚本
 ├── depends/ubuntu-22.04               # 构建依赖
-├── feeds-istoreos.conf                # iStoreOS feeds
-├── feeds-openwrt.conf                 # OpenWrt feeds
-├── feeds-immortalwrt.conf             # ImmortalWrt feeds
-├── .config.istoreos                   # iStoreOS 内核配置
-├── .config.openwrt                    # OpenWrt 内核配置
-├── .config.immortalwrt                # ImmortalWrt 内核配置
-├── diy-part1.d/                       # 每个 distro 独立的 part1 脚本
+├── feeds-istoreos.conf
+├── feeds-openwrt.conf
+├── feeds-immortalwrt.conf
+├── .config.istoreos
+├── .config.openwrt
+├── .config.immortalwrt
+├── diy-part1.d/                       # 发行版独立的源码预处理脚本
 │   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
-├── diy-part2.d/                       # 每个 distro 独立的 part2 脚本
+├── diy-part2.d/                      # 发行版独立的配置注入脚本
 │   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
-└── files/                             # 每个 distro 独立的文件注入
-    ├── istoreos/etc/config/network    # iStoreOS 自定义 /etc/config/network
-    ├── openwrt/etc/config/network     # OpenWrt 自定义 /etc/config/network
-    └── immortalwrt/etc/config/network # ImmortalWrt 自定义 /etc/config/network
+└── files/                             # 文件注入目录
+    ├── istoreos/etc/config/network
+    ├── openwrt/etc/config/network
+    └── immortalwrt/etc/config/network
 ```
-
-## DIY 脚本说明
-
-每个发行版有独立的 part1 / part2 脚本，互不影响，可在对应目录添加或修改：
-
-**diy-part1.d/{distro}.sh** — 在 `scripts/feeds update` 之前运行
-- 用途：修改版本号、替换源码文件等
-
-**diy-part2.d/{distro}.sh** — 在 `.config` 加载之后、`make` 之前运行
-- 用途：注入自定义配置、修改内核选项、覆盖 package 等
-
-**files/{distro}/** — 在 `make` 阶段注入到固件文件系统
-- 示例：`files/istoreos/etc/config/network` 会覆盖固件内对应路径
-
-## 添加自定义包（以 iStoreOS 为例）
-
-1. 克隆代码后进入源码目录：
-   ```bash
-   cd openwrt
-   ```
-2. 检查包是否存在：
-   ```bash
-   scripts/feeds search 关键字
-   ```
-3. 安装包：
-   ```bash
-   ./scripts/feeds install 包名
-   ```
-4. 在 `.config.istoreos` 中启用：
-   ```bash
-   make menuconfig
-   # 选择 Target System → Subtarget → Target Profile → Packages
-   ```
-5. 提交改动
 
 ## 鸣谢
 
