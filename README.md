@@ -195,6 +195,65 @@ Gemtek-XR1710G-wrt-builder/
     └── immortalwrt/etc/config/network
 ```
 
+## 添加第三方插件仓库
+
+每个 distro 的 feeds 配置文件独立，互不影响。根据需要修改对应的文件：
+
+| 发行版 | feeds 文件 |
+|--------|-----------|
+| iStoreOS | `feeds-istoreos.conf` |
+| OpenWrt | `feeds-openwrt.conf` |
+| ImmortalWrt | `feeds-immortalwrt.conf` |
+
+### 第一步：在 feeds 文件中添加仓库
+
+在对应 distro 的 feeds 文件末尾追加一行，格式：
+
+```
+src-git 包名 https://github.com/用户名/仓库名.git;分支名
+```
+
+**以 iStoreOS 为例**，追加一个示例插件仓库：
+```
+src-git myplugin https://github.com/example/openwrt-myplugin.git;main
+```
+
+**注意**：`;` 后面的分支名必须与代码仓库实际存在的分支一致，不支持 `latest` 或 `master` 的自动别名。
+
+### 第二步：在 .config 中启用插件
+
+修改对应 distro 的内核配置：
+
+```
+.config.istoreos    # iStoreOS
+.config.openwrt     # OpenWrt
+.config.immortalwrt # ImmortalWrt
+```
+
+在文件末尾追加包名：
+```
+CONFIG_PACKAGE_luci-app-myplugin=y
+CONFIG_PACKAGE_my-plugin=y
+```
+
+不清楚包的确切名称？编译前可以在本地快速查找（需先 clone 源码）：
+```bash
+cd openwrt
+./scripts/feeds update -a
+./scripts/feeds install -a
+./scripts/feeds search 关键字
+```
+
+### 第三步：提交并推送
+
+```bash
+git add feeds-istoreos.conf .config.istoreos
+git commit -m "feat: add third-party plugin repo and packages"
+git push origin main
+```
+
+然后在 Actions 触发编译即可。
+
 ## 鸣谢
 
 - [YYH2913/openwrt](https://github.com/YYH2913/openwrt) — XR1710G 设备适配
