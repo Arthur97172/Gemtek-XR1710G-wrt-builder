@@ -12,6 +12,10 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
+      default_lan_ip:
+        description: 'Default LAN IP (all distros)'
+        required: false
+        default: ''
   schedule:
    - cron: 0 16 * * *
 
@@ -19,12 +23,12 @@ env:
   REPO_URL: https://github.com/YYH2913/openwrt
   REPO_BRANCH: xr1710g-6.18-integration
   ARCHITECTURE: xr1710g
-  DIY_P1_SH: diy-part1.sh
-  DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
+  DIY_P1_DIR: diy-part1.d
+  DIY_P2_DIR: diy-part2.d
 
 jobs:
   build:
@@ -38,18 +42,24 @@ jobs:
             dist_name: iStoreOS
             dist_tag: istoreos
             release_title: iStoreOS
+            default_ip: 192.168.100.1
+            files_dir: files/istoreos
           - distro: openwrt
             feeds_conf: feeds-openwrt.conf
             config_file: .config.openwrt
             dist_name: OpenWrt
             dist_tag: openwrt
             release_title: OpenWrt
+            default_ip: 192.168.1.1
+            files_dir: files/openwrt
           - distro: immortalwrt
             feeds_conf: feeds-immortalwrt.conf
             config_file: .config.immortalwrt
             dist_name: ImmortalWrt
             dist_tag: immortalwrt
             release_title: ImmortalWrt
+            default_ip: 192.168.1.1
+            files_dir: files/immortalwrt
         os:
           - ubuntu-22.04
 
@@ -92,15 +102,17 @@ jobs:
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
-        mixkey: ${{ matrix.os }}-${{ matrix.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ matrix.dist_tag }}-v2
+        mixkey: ${{ matrix.os }}-${{ env.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ matrix.dist_tag }}-v3
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 加载 feeds 配置
       run: |
         cp "${{ matrix.feeds_conf }}" openwrt/feeds.conf
-        chmod +x "$DIY_P1_SH"
-        cd openwrt
-        "$GITHUB_WORKSPACE/$DIY_P1_SH"
+
+    - name: DIY part1 — 版本号
+      run: |
+        chmod +x "$DIY_P1_DIR/${{ matrix.distro }}.sh"
+        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P1_DIR/${{ matrix.distro }}.sh"
 
     - name: 更新 feeds
       run: cd openwrt && ./scripts/feeds update -a
@@ -109,14 +121,16 @@ jobs:
       run: cd openwrt && ./scripts/feeds install -a
 
     - name: 加载配置
-      env:
-        DIST_NAME: ${{ matrix.dist_name }}
       run: |
-        [ -e files ] && mv files openwrt/files || true
         [ -e "${{ matrix.config_file }}" ] && cp "${{ matrix.config_file }}" openwrt/.config || echo ".config 未找到，跳过"
-        chmod +x "$DIY_P2_SH"
-        cd openwrt
-        "$GITHUB_WORKSPACE/$DIY_P2_SH"
+
+    - name: DIY part2 — 自定义注入
+      env:
+        DEFAULT_LAN_IP: ${{ github.event.inputs.default_lan_ip || matrix.default_ip }}
+        DISTRO_FILES: ${{ matrix.files_dir }}
+      run: |
+        chmod +x "$DIY_P2_DIR/${{ matrix.distro }}.sh"
+        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/${{ matrix.distro }}.sh"
 
     - name: SSH
       uses: P3TERX/ssh2actions@v1.0.0
@@ -180,18 +194,19 @@ jobs:
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       env:
         DIST_TITLE: ${{ matrix.release_title }}
+        LAN_IP: ${{ github.event.inputs.default_lan_ip || matrix.default_ip }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
-        cat > release.txt << 'EOF'
+        cat > release.txt << EOF
 设备: XR1710G (Airoha AN7581)
+发行版: ${{ matrix.release_title }}
 源码: YYH2913/openwrt (xr1710g-6.18-integration)
 分支: xr1710g-6.18-integration
 编译时间: $(date +'%Y年%m月%d日%H时%M分')
-管理地址: 192.168.100.1
+默认 LAN IP: $LAN_IP
 用户名: root
 密码: password
 EOF
-        sed -i "s/\$(date.*)/$(date +'%Y年%m月%d日%H时%M分')/" release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布到 Releases
