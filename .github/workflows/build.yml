@@ -16,6 +16,16 @@ on:
         description: 'Default LAN IP (all distros)'
         required: false
         default: ''
+      target:
+        description: 'Select which distro(s) to build'
+        required: false
+        type: choice
+        options:
+          - all
+          - istoreos
+          - openwrt
+          - immortalwrt
+        default: all
   schedule:
    - cron: 0 16 * * *
 
@@ -44,6 +54,7 @@ jobs:
             release_title: iStoreOS
             default_ip: 192.168.100.1
             files_dir: files/istoreos
+            if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'istoreos' || github.event.inputs.target == '' }}
           - distro: openwrt
             feeds_conf: feeds-openwrt.conf
             config_file: .config.openwrt
@@ -52,6 +63,7 @@ jobs:
             release_title: OpenWrt
             default_ip: 192.168.1.1
             files_dir: files/openwrt
+            if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'openwrt' || github.event.inputs.target == '' }}
           - distro: immortalwrt
             feeds_conf: feeds-immortalwrt.conf
             config_file: .config.immortalwrt
@@ -60,6 +72,7 @@ jobs:
             release_title: ImmortalWrt
             default_ip: 192.168.1.1
             files_dir: files/immortalwrt
+            if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'immortalwrt' || github.event.inputs.target == '' }}
         os:
           - ubuntu-22.04
 
