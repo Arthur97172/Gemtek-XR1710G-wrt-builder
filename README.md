@@ -21,9 +21,14 @@
 
 ## 默认配置
 
-- IP: `http://192.168.100.1` 或 `http://iStoreOS.lan/`
-- 用户名: `root`
-- 密码: `password`
+| 发行版 | 默认 IP | Web 管理地址 | 登录入口 |
+|--------|---------|-------------|---------|
+| iStoreOS | `192.168.100.1` | `http://iStoreOS.lan/` | LuCI + iStore 管理面板 |
+| OpenWrt | `192.168.1.1` | `http://192.168.1.1` | LuCI |
+| ImmortalWrt | `192.168.1.1` | `http://192.168.1.1` | LuCI |
+
+**通用：**
+- 用户名: `root` / 密码: `password`
 - 第一个网口默认 WAN，其余为 LAN
 
 ## 编译
