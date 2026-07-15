@@ -36,25 +36,17 @@
 
 ---
 
-## DIY 脚本详解
-
-每个发行版有**完全独立**的脚本，互不影响。脚本放在 `diy-part1.d/` 和 `diy-part2.d/` 目录下，文件名对应发行版：`istoreos.sh` / `openwrt.sh` / `immortalwrt.sh`。
-
-### 执行顺序
+## 执行顺序
 
 ```
-diy-part1.d/{distro}.sh   →  feeds update/install 之前运行
-diy-part2.d/{distro}.sh   →  .config 加载之后、make 之前运行
-files/{distro}/           →  make 阶段自动注入固件文件系统
+diy-part1.sh              →  feeds update/install 之前运行，all distros 共用
+diy-part2.d/{distro}.sh   →  .config 加载之后、make 之前运行，每个 distro 独立
+files/{distro}/            →  make 阶段自动注入固件文件系统
 ```
 
----
+### diy-part1.sh — 版本号（全局共用）
 
-### diy-part1.d — 源码预处理
-
-在 `scripts/feeds update` 之前运行，此时源码刚 clone 完毕、feeds.conf 就位。
-
-**典型用途：** 修改版本号、替换源码文件、打补丁。
+`scripts/feeds update` 之前运行，此时源码刚 clone 完毕、feeds.conf 就位。
 
 ```bash
 # 示例：修改 version 文件中的时间戳
@@ -184,23 +176,20 @@ sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" \
 
 ```
 Gemtek-XR1710G-wrt-builder/
-├── .github/workflows/build.yml        # CI 构建脚本
-├── depends/ubuntu-22.04               # 构建依赖
+├── .github/workflows/build.yml     # CI 构建脚本
+├── depends/ubuntu-22.04            # 构建依赖
+├── diy-part1.sh                    # 版本号补丁，all distros 共用
 ├── feeds-istoreos.conf
 ├── feeds-openwrt.conf
 ├── feeds-immortalwrt.conf
 ├── .config.istoreos
 ├── .config.openwrt
 ├── .config.immortalwrt
-├── diy-part1.d/                       # 发行版独立的源码预处理脚本
+├── diy-part2.d/                    # 每个 distro 独立的配置注入脚本
 │   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
-├── diy-part2.d/                      # 发行版独立的配置注入脚本
-│   ├── istoreos.sh
-│   ├── openwrt.sh
-│   └── immortalwrt.sh
-└── files/                             # 文件注入目录
+└── files/                          # 文件注入目录
     ├── istoreos/etc/config/network
     ├── openwrt/etc/config/network
     └── immortalwrt/etc/config/network

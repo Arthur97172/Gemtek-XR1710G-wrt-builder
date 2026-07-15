@@ -37,7 +37,6 @@ env:
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
-  DIY_P1_DIR: diy-part1.d
   DIY_P2_DIR: diy-part2.d
 
 jobs:
@@ -124,8 +123,8 @@ jobs:
 
     - name: DIY part1 — 版本号
       run: |
-        chmod +x "$DIY_P1_DIR/${{ matrix.distro }}.sh"
-        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P1_DIR/${{ matrix.distro }}.sh"
+        chmod +x diy-part1.sh
+        cd openwrt && "$GITHUB_WORKSPACE/diy-part1.sh"
 
     - name: 更新 feeds
       run: cd openwrt && ./scripts/feeds update -a
