@@ -197,16 +197,16 @@ jobs:
         LAN_IP: ${{ github.event.inputs.default_lan_ip || matrix.default_ip }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
-        cat > release.txt << EOF
-设备: XR1710G (Airoha AN7581)
-发行版: ${{ matrix.release_title }}
-源码: YYH2913/openwrt (xr1710g-6.18-integration)
-分支: xr1710g-6.18-integration
-编译时间: $(date +'%Y年%m月%d日%H时%M分')
-默认 LAN IP: $LAN_IP
-用户名: root
-密码: password
-EOF
+        cat > release.txt
+        printf '%s\n' \
+          "设备: XR1710G (Airoha AN7581)" \
+          "发行版: ${{ matrix.release_title }}" \
+          "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
+          "分支: xr1710g-6.18-integration" \
+          "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
+          "默认 LAN IP: $LAN_IP" \
+          "用户名: root" \
+          "密码: password" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布到 Releases
