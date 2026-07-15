@@ -134,22 +134,21 @@ sed -i '/CONFIG_KERNEL_HZ=/d' .config
 echo 'CONFIG_KERNEL_HZ=1000' >> .config
 ```
 
-#### 场景三：修改或追加 package（.config 覆写）
+#### 场景三：添加第三方 package（推荐方式）
 
-在已加载的 `.config` 基础上增删软件包。包必须先被 feeds install 过才能在 .config 中启用。
+推荐直接编辑 `packages/{distro}.conf`，**无需修改 diy 脚本**，编译时自动追加。例如在 `packages/istoreos.conf` 中添加：
 
+```
+CONFIG_PACKAGE_luci-app-samba4=y
+CONFIG_PACKAGE_curl=y
+CONFIG_PACKAGE_tcpdump=y
+```
+
+已在 `packages/*.conf` 中的包，diy-part2.d 会自动追加到 `.config`，不污染原始 `.config.*`。如需移除某个包，注释掉或删掉对应行即可。
+
+**也可用 sed 在脚本中临时修改（不推荐，会污染 `.config.*`）：**
 ```bash
-# 追加预装包（需先确认 feeds install）
 echo 'CONFIG_PACKAGE_curl=y' >> .config
-echo 'CONFIG_PACKAGE_wget-ssl=y' >> .config
-echo 'CONFIG_PACKAGE_luci-app-samba4=y' >> .config
-
-# 移除不需要的包
-sed -i '/CONFIG_PACKAGE_ddns-scripts/d' .config
-sed -i '/CONFIG_PACKAGE_luci-app-wol/d' .config
-sed -i '/CONFIG_PACKAGE_nlbwmon/d' .config
-
-# 全局关闭某个功能的所有依赖
 sed -i '/CONFIG_PACKAGE_p910nd/d' .config
 ```
 
@@ -193,50 +192,52 @@ Gemtek-XR1710G-wrt-builder/
     ├── istoreos/etc/config/network
     ├── openwrt/etc/config/network
     └── immortalwrt/etc/config/network
+packages/                           # 每个 distro 独立的第三方插件配置
+├── istoreos.conf
+├── openwrt.conf
+└── immortalwrt.conf
 ```
 
-## 添加第三方插件仓库
+## 添加第三方插件
 
-每个 distro 的 feeds 配置文件独立，互不影响。根据需要修改对应的文件：
+三个 distro 的插件配置文件**完全独立**，互不影响。
 
-| 发行版 | feeds 文件 |
-|--------|-----------|
-| iStoreOS | `feeds-istoreos.conf` |
-| OpenWrt | `feeds-openwrt.conf` |
-| ImmortalWrt | `feeds-immortalwrt.conf` |
+### 插件配置文件
 
-### 第一步：在 feeds 文件中添加仓库
+| 发行版 | 插件配置 |
+|--------|---------|
+| iStoreOS | `packages/istoreos.conf` |
+| OpenWrt | `packages/openwrt.conf` |
+| ImmortalWrt | `packages/immortalwrt.conf` |
 
-在对应 distro 的 feeds 文件末尾追加一行，格式：
+每个文件只放包名注释掉（`#` 开头）和要启用的包（格式：`CONFIG_PACKAGE_xxx=y`）。编译时 `diy-part2.d/{distro}.sh` 自动将这些行追加到 `.config`，不修改原始 `.config.*`。
 
+**示例（`packages/istoreos.conf`）：**
 ```
-src-git 包名 https://github.com/用户名/仓库名.git;分支名
+# CONFIG_PACKAGE_luci-app-wol=y
+# CONFIG_PACKAGE_luci-app-guest-wifi=y
+CONFIG_PACKAGE_curl=y
+CONFIG_PACKAGE_luci-app-samba4=y
+CONFIG_PACKAGE_tcpdump=y
 ```
+取消注释即启用，注释掉即不编译，不会污染原始 `.config.*`。
 
-**以 iStoreOS 为例**，追加一个示例插件仓库：
+### 第一步：在 feeds 文件中添加仓库（如果插件来自第三方）
+
+根据 distro 修改对应的 `feeds-*.conf`：
 ```
-src-git myplugin https://github.com/example/openwrt-myplugin.git;main
-```
-
-**注意**：`;` 后面的分支名必须与代码仓库实际存在的分支一致，不支持 `latest` 或 `master` 的自动别名。
-
-### 第二步：在 .config 中启用插件
-
-修改对应 distro 的内核配置：
-
-```
-.config.istoreos    # iStoreOS
-.config.openwrt     # OpenWrt
-.config.immortalwrt # ImmortalWrt
+src-git myrepo https://github.com/用户名/仓库.git;分支
 ```
 
-在文件末尾追加包名：
+### 第二步：在 packages 配置文件中启用插件
+
+编辑对应 distro 的 `packages/*.conf`，取消注释或新增：
 ```
 CONFIG_PACKAGE_luci-app-myplugin=y
 CONFIG_PACKAGE_my-plugin=y
 ```
 
-不清楚包的确切名称？编译前可以在本地快速查找（需先 clone 源码）：
+不清楚包的确切名称？本地快速查找（需先 clone 源码）：
 ```bash
 cd openwrt
 ./scripts/feeds update -a
@@ -247,7 +248,7 @@ cd openwrt
 ### 第三步：提交并推送
 
 ```bash
-git add feeds-istoreos.conf .config.istoreos
+git add feeds-istoreos.conf packages/istoreos.conf
 git commit -m "feat: add third-party plugin repo and packages"
 git push origin main
 ```
