@@ -178,25 +178,27 @@ sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" \
 Gemtek-XR1710G-wrt-builder/
 ├── .github/workflows/build.yml     # CI 构建脚本
 ├── depends/ubuntu-22.04            # 构建依赖
-├── diy-part1.sh                    # 版本号补丁，all distros 共用
-├── feeds-istoreos.conf
-├── feeds-openwrt.conf
-├── feeds-immortalwrt.conf
-├── .config.istoreos
-├── .config.openwrt
-├── .config.immortalwrt
-├── diy-part2.d/                    # 每个 distro 独立的配置注入脚本
+├── diy-part1.sh                   # 版本号补丁，all distros 共用
+├── feeds.d/                       # feeds 配置目录
+│   ├── istoreos
+│   ├── openwrt
+│   └── immortalwrt
+├── configs/                       # 内核配置目录
+│   ├── istoreos.config
+│   ├── openwrt.config
+│   └── immortalwrt.config
+├── diy-part2.d/                   # 每个 distro 独立的配置注入脚本
 │   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
-└── files/                          # 文件注入目录
-    ├── istoreos/etc/config/network
-    ├── openwrt/etc/config/network
-    └── immortalwrt/etc/config/network
-packages/                           # 每个 distro 独立的第三方插件配置
-├── istoreos.conf
-├── openwrt.conf
-└── immortalwrt.conf
+├── files/                         # 文件注入目录
+│   ├── istoreos/etc/config/network
+│   ├── openwrt/etc/config/network
+│   └── immortalwrt/etc/config/network
+└── packages/                      # 每个 distro 独立的第三方插件配置
+    ├── istoreos.conf
+    ├── openwrt.conf
+    └── immortalwrt.conf
 ```
 
 ## 添加第三方插件

@@ -58,8 +58,8 @@ jobs:
       matrix:
         include:
           - distro: istoreos
-            feeds_conf: feeds-istoreos.conf
-            config_file: .config.istoreos
+            feeds_conf: feeds.d/istoreos
+            config_file: configs/istoreos.config
             dist_name: iStoreOS
             dist_tag: istoreos
             release_title: iStoreOS
@@ -67,8 +67,8 @@ jobs:
             files_dir: files/istoreos
             if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'istoreos' || github.event.inputs.target == '' }}
           - distro: openwrt
-            feeds_conf: feeds-openwrt.conf
-            config_file: .config.openwrt
+            feeds_conf: feeds.d/openwrt
+            config_file: configs/openwrt.config
             dist_name: OpenWrt
             dist_tag: openwrt
             release_title: OpenWrt
@@ -76,8 +76,8 @@ jobs:
             files_dir: files/openwrt
             if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'openwrt' || github.event.inputs.target == '' }}
           - distro: immortalwrt
-            feeds_conf: feeds-immortalwrt.conf
-            config_file: .config.immortalwrt
+            feeds_conf: feeds.d/immortalwrt
+            config_file: configs/immortalwrt.config
             dist_name: ImmortalWrt
             dist_tag: immortalwrt
             release_title: ImmortalWrt
