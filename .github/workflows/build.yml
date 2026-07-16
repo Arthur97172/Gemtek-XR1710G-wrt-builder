@@ -49,6 +49,8 @@ env:
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
+  REPO_URL: ${{ github.event.inputs.target == 'istoreos' && 'https://github.com/hx801217/istoreos' || (github.event.inputs.target == 'immortalwrt' && 'https://github.com/lvcdy/openwrt_xr1710g' || 'https://github.com/lvcdy/openwrt_xr1710g') }}
+  REPO_BRANCH: ${{ github.event.inputs.target == 'istoreos' && 'istoreos-24.10' || (github.event.inputs.target == 'immortalwrt' && 'main' || 'main') }}
 
 jobs:
   build:
