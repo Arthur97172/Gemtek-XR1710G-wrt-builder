@@ -6,9 +6,9 @@
 
 | 发行版 | 版本 | 默认 LAN IP | 默认密码 | 备注 |
 |--------|------|-----------|---------|------|
-| **iStoreOS** | OpenWrt 24.10 | `192.168.10.1` | `password` | LuCI + iStore 管理面板 |
-| **OpenWrt 24.10** | OpenWrt 24.10 | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） | 标准 LuCI |
-| **ImmortalWrt 24.10** | OpenWrt 24.10 | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） | 增强插件生态 |
+| **iStoreOS** | 24.10 | `192.168.10.1` | `password` | LuCI + iStore 管理面板 |
+| **OpenWrt** | 24.10 | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） | 标准 LuCI |
+| **ImmortalWrt** | 24.10 | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） | 增强插件生态 |
 
 **通用：用户名 `root`，第一个网口默认 WAN，其余 LAN。**
 
