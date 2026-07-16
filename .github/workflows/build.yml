@@ -204,6 +204,18 @@ jobs:
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
+        shopt -s globstar nullglob
+        for f in **/*; do
+          [ -f "$f" ] || continue
+          case "$f" in
+            config.buildinfo|\
+            *w1700k-ubi-initramfs-recovery.itb|\
+            *w1700k-ubi-squashfs-sysupgrade.itb|\
+            *xr1710g-ubi-initramfs-recovery.itb|\
+            *xr1710g-ubi-squashfs-sysupgrade.itb) continue ;;
+            *) rm -f "$f" ;;
+          esac
+        done
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
