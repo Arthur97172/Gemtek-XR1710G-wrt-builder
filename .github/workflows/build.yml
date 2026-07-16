@@ -38,7 +38,7 @@ on:
       lan_ip_custom:
         description: 'Custom LAN IP (only effective when preset is custom)'
         required: false
-        default: '192.168.10.1'
+        default: '192.168.5.1'
   schedule:
    - cron: 0 16 * * *
 
