@@ -4,17 +4,13 @@
 
 ## 固件发行版
 
-| 发行版 | 版本 | 默认 LAN IP | 默认密码 |
+| 发行版 | 版本 | 默认用户名 | 默认密码 |
 |--------|------|-----------|---------|
-| **iStoreOS** | SNAPSHOT | `192.168.10.1` | `password` |
-| **OpenWrt** | SNAPSHOT | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
-| **ImmortalWrt** | SNAPSHOT | `192.168.10.1` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
+| **iStoreOS** | SNAPSHOT | `root` | `password` |
+| **OpenWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
+| **ImmortalWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
 
-**通用：用户名 `root`，第一个网口默认 WAN，其余 LAN。**
-
-## 自定义默认 LAN IP
-
-编译前在 GitHub Actions 触发构建时选择 `lan_ip_preset`（选择 `custom` 时填写 `lan_ip_custom`）。不填写时统一使用 `192.168.10.1`。
+**通用：第一个网口默认 WAN，其余 LAN。各发行版使用其系统默认 LAN IP。**
 
 ## 编译
 
@@ -22,9 +18,7 @@
 
 | 参数 | 说明 |
 |------|------|
-| `target` | 可选，指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt`（默认 `immortalwrt`） |
-| `lan_ip_preset` | 预设 IP 下拉（选 `custom` 时使用 Custom IP）：`custom` / 192.168.10.1 / 192.168.100.1 / 192.168.1.1 / 10.0.0.1 / 172.16.0.1 |
-| `lan_ip_custom` | 自定义 LAN IP（仅在 Preset 选择 `custom` 时生效） |
+| `target` | 指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt`（默认 `immortalwrt`） |
 | `ssh` | 可选，填 `true` 开启 SSH 调试会话 |
 
 选择 `target` 时，每次只编译该发行版，可用于单独更新某个固件而不触发其他两个。
@@ -38,9 +32,8 @@
 ## 执行顺序
 
 ```
-scripts/diy-part1.sh         →  feeds update/install 之前运行，all distros 共用
+scripts/diy-part1.sh      →  feeds update/install 之前运行，all distros 共用
 diy-part2.d/{distro}.sh   →  .config 加载之后、make 之前运行，每个 distro 独立
-files/{distro}/            →  make 阶段自动注入固件文件系统
 ```
 
 ### diy-part1.sh — 版本号（全局共用）
@@ -65,57 +58,7 @@ sed -i "s/0000000000/${date_version}/g" version
 
 在 `.config` 加载之后、`make` 之前运行，此时可以读写 `.config` 文件和 `openwrt/` 目录。
 
-#### 场景一：文件注入（自定义固件内置文件）
-
-将文件放到 `files/{distro}/` 目录，编译时自动覆盖固件内的对应路径。
-
-**目录结构示例：**
-```
-files/
-├── istoreos/
-│   └── etc/config/
-│       ├── network          # 自定义网络配置（含 LAN IP）
-│       └── firewall         # 自定义防火墙规则
-└── openwrt/
-    └── etc/config/
-        └── network
-```
-
-**network 模板示例（`files/openwrt/etc/config/network`）：**
-```
-config interface 'loopback'
-	option device 'lo'
-	option proto 'static'
-	option ipaddr '127.0.0.1'
-	option netmask '255.0.0.0'
-
-config device
-	option name 'br-lan'
-	option type 'bridge'
-	list ports 'lan1'
-	list ports 'lan2'
-	list ports 'lan3'
-	list ports 'lan4'
-
-config interface 'lan'
-	option device 'br-lan'
-	option proto 'static'
-	option ipaddr '${DEFAULT_LAN_IP}'
-	option netmask '255.255.255.0'
-	list ipaddr '${DEFAULT_LAN_IP}/24'
-
-config interface 'wan'
-	option device 'wan'
-	option proto 'dhcp'
-```
-
-**diy-part2.d 中的注入写法：**
-```bash
-cp "$GITHUB_WORKSPACE/files/openwrt/etc/config/network" openwrt/files/etc/config/network
-sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" openwrt/files/etc/config/network
-```
-
-#### 场景二：修改内核选项（.config 覆写）
+#### 场景一：修改内核选项（.config 覆写）
 
 直接编辑 `.config` 文件（追加或注释掉行）。
 
@@ -133,7 +76,7 @@ sed -i '/CONFIG_KERNEL_HZ=/d' .config
 echo 'CONFIG_KERNEL_HZ=1000' >> .config
 ```
 
-#### 场景三：添加第三方 package（推荐方式）
+#### 场景二：添加第三方 package（推荐方式）
 
 推荐直接编辑 `packages/{distro}.conf`，**无需修改 diy 脚本**，编译时自动追加。例如在 `packages/istoreos.conf` 中添加：
 
@@ -151,7 +94,7 @@ echo 'CONFIG_PACKAGE_curl=y' >> .config
 sed -i '/CONFIG_PACKAGE_p910nd/d' .config
 ```
 
-#### 场景四：UCI 默认值（固件首次启动自动应用）
+#### 场景三：UCI 默认值（固件首次启动自动应用）
 
 通过 `/etc/uci-defaults/` 注入，固件首次启动时 UCI 会自动执行这些脚本。
 
@@ -159,13 +102,9 @@ sed -i '/CONFIG_PACKAGE_p910nd/d' .config
 mkdir -p openwrt/files/etc/uci-defaults
 cat > openwrt/files/etc/uci-defaults/99-custom << 'UCIEOF'
 #!/bin/sh
-uci set network.lan.ipaddr='${DEFAULT_LAN_IP}'
-uci commit network
 uci set system.@system[0].timezone='CST-8'
 uci commit system
 UCIEOF
-sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" \
-  openwrt/files/etc/uci-defaults/99-custom
 ```
 
 ---
@@ -189,10 +128,6 @@ Gemtek-XR1710G-wrt-builder/
 │   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
-├── files/                         # 文件注入目录
-│   ├── istoreos/etc/config/network
-│   ├── openwrt/etc/config/network
-│   └── immortalwrt/etc/config/network
 └── packages/                      # 每个 distro 独立的第三方插件配置
     ├── istoreos.conf
     ├── openwrt.conf
