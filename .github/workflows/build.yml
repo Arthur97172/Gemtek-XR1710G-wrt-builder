@@ -42,8 +42,6 @@ on:
    - cron: 0 16 * * *
 
 env:
-  REPO_URL: https://github.com/YYH2913/openwrt
-  REPO_BRANCH: xr1710g-6.18-integration
   ARCHITECTURE: xr1710g
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
@@ -81,8 +79,31 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: 克隆源码
-      working-directory: /workdir
+    - name: 克隆源码 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      env:
+        REPO_URL: https://github.com/lvcdy/openwrt_xr1710g
+        REPO_BRANCH: main
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: 克隆源码 — OpenWrt
+      if: ${{ env.TARGET == 'openwrt' }}
+      env:
+        REPO_URL: https://github.com/lvcdy/openwrt_xr1710g
+        REPO_BRANCH: main
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: 克隆源码 — iStoreOS
+      if: ${{ env.TARGET == 'istoreos' }}
+      env:
+        REPO_URL: https://github.com/hx801217/istoreos
+        REPO_BRANCH: istoreos-24.10
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
@@ -92,7 +113,7 @@ jobs:
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
-        mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ env.TARGET }}-v4
+        mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 加载 feeds 配置 — iStoreOS
