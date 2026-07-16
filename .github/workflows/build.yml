@@ -1,4 +1,4 @@
-name: Build All
+name: Build Airoha_an7581-Wrt
 
 permissions:
   contents: write
@@ -252,7 +252,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh run list --workflow="Build All" --limit 30 --json databaseId --jq '.[].databaseId' | \
+        gh run list --workflow="Build Airoha_an7581-Wrt" --limit 30 --json databaseId --jq '.[].databaseId' | \
           tail -n +2 | xargs -I {} gh run delete {} --yes || true
 
     - name: 清理旧 Release
