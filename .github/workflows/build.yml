@@ -81,18 +81,39 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: 克隆源码
+    - name: 克隆源码 — iStoreOS / OpenWrt
+      if: ${{ env.TARGET != 'immortalwrt' }}
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
+    - name: 克隆源码 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      working-directory: /workdir
+      env:
+        REPO_URL: https://github.com/SongOfLightAndShadow/immortalwrt-xr1710g-las
+        REPO_BRANCH: master
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
     - name: 缓存构建动作
+      if: ${{ env.TARGET != 'immortalwrt' }}
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
         mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ env.TARGET }}-v4
+        prefix: ${{ github.workspace }}/openwrt
+
+    - name: 缓存构建动作 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      uses: klever1988/cachewrtbuild@main
+      with:
+        ccache: 'true'
+        mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-master-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 加载 feeds 配置 — iStoreOS
