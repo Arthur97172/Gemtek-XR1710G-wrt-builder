@@ -22,7 +22,7 @@
 
 | 参数 | 说明 |
 |------|------|
-| `target` | 可选，指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt` / `all`（默认 `immortalwrt`） |
+| `target` | 可选，指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt`（默认 `immortalwrt`） |
 | `lan_ip_preset` | 预设 IP 下拉（选 `custom` 时使用 Custom IP）：`custom` / 192.168.10.1 / 192.168.100.1 / 192.168.1.1 / 10.0.0.1 / 172.16.0.1 |
 | `lan_ip_custom` | 自定义 LAN IP（仅在 Preset 选择 `custom` 时生效） |
 | `ssh` | 可选，填 `true` 开启 SSH 调试会话 |
