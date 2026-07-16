@@ -14,9 +14,7 @@
 
 ## 自定义默认 LAN IP
 
-编译前在 GitHub Actions 触发构建时选择 `lan_ip_preset`（常用 IP 下拉）或填入 `lan_ip_custom`（完全自定义）。
-
-不填写时统一使用 `192.168.10.1`。三个发行版的 LAN IP 同时生效。
+编译前在 GitHub Actions 触发构建时选择 `lan_ip_preset`（选择 `custom` 时填写 `lan_ip_custom`）。不填写时统一使用 `192.168.10.1`。
 
 ## 编译
 
@@ -24,9 +22,9 @@
 
 | 参数 | 说明 |
 |------|------|
-| `target` | 可选，指定编译哪个发行版：`all`（默认）、`istoreos`、`openwrt`、`immortalwrt` |
-| `lan_ip_preset` | 可选，预设 IP 下拉（192.168.10.1 / 192.168.100.1 / 192.168.1.1 / 10.0.0.1 / 172.16.0.1）|
-| `lan_ip_custom` | 可选，填写后以此 IP 为准（覆盖 preset）
+| `target` | 可选，指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt` / `all`（默认 `immortalwrt`） |
+| `lan_ip_preset` | 预设 IP 下拉（选 `custom` 时使用 Custom IP）：`custom` / 192.168.10.1 / 192.168.100.1 / 192.168.1.1 / 10.0.0.1 / 172.16.0.1 |
+| `lan_ip_custom` | 自定义 LAN IP（仅在 Preset 选择 `custom` 时生效） |
 | `ssh` | 可选，填 `true` 开启 SSH 调试会话 |
 
 选择 `target` 时，每次只编译该发行版，可用于单独更新某个固件而不触发其他两个。

@@ -17,16 +17,17 @@ on:
         required: false
         type: choice
         options:
-          - all
           - istoreos
           - openwrt
           - immortalwrt
-        default: all
+          - all
+        default: immortalwrt
       lan_ip_preset:
-        description: 'LAN IP preset (used if custom is empty)'
+        description: 'LAN IP preset (used when custom is not selected)'
         required: false
         type: choice
         options:
+          - custom
           - 192.168.10.1
           - 192.168.100.1  # iStoreOS 旧默认
           - 192.168.1.1    # OpenWrt/ImmortalWrt 默认
@@ -35,7 +36,7 @@ on:
           - 172.16.0.1     # B 类私有
         default: 192.168.10.1
       lan_ip_custom:
-        description: 'Custom LAN IP (override preset if filled)'
+        description: 'Custom LAN IP (only effective when preset is custom)'
         required: false
         default: '192.168.10.1'
   schedule:
@@ -150,7 +151,7 @@ jobs:
 
     - name: DIY part2 — 自定义注入
       env:
-        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset || matrix.default_ip }}
+        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
         DISTRO_FILES: ${{ matrix.files_dir }}
       run: |
         chmod +x "$DIY_P2_DIR/${{ matrix.distro }}.sh"
