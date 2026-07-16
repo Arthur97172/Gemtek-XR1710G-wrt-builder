@@ -11,6 +11,7 @@ PKG_CONF="$GITHUB_WORKSPACE/packages/openwrt.conf"
 sed -i '/CONFIG_PACKAGE_libnl-3-dev/d' .config
 sed -i '/CONFIG_PACKAGE_libnl-genl-3-dev/d' .config
 
+echo "CONFIG_PERSISTENT_HUGE_ZERO_FOLIO=n" >> target/linux/airoha/config-6.18
 
 # ===== UCI 默认值示例 ======
 # mkdir -p openwrt/files/etc/uci-defaults
