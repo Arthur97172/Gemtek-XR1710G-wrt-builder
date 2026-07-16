@@ -13,8 +13,8 @@ on:
         required: false
         default: 'false'
       target:
-        description: 'Select which distro(s) to build'
-        required: false
+        description: 'Select which distro to build'
+        required: true
         type: choice
         options:
           - istoreos
@@ -50,45 +50,11 @@ env:
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
+  TARGET: ${{ github.event.inputs.target }}
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - distro: istoreos
-            feeds_conf: feeds.d/istoreos
-            config_file: configs/istoreos.config
-            dist_name: iStoreOS
-            dist_tag: istoreos
-            release_title: iStoreOS
-            default_ip: 192.168.10.1
-            files_dir: files/istoreos
-            if: ${{ github.event.inputs.target == 'istoreos' }}
-          - distro: openwrt
-            feeds_conf: feeds.d/openwrt
-            config_file: configs/openwrt.config
-            dist_name: OpenWrt
-            dist_tag: openwrt
-            release_title: OpenWrt
-            default_ip: 192.168.10.1
-            files_dir: files/openwrt
-            if: ${{ github.event.inputs.target == 'openwrt' }}
-          - distro: immortalwrt
-            feeds_conf: feeds.d/immortalwrt
-            config_file: configs/immortalwrt.config
-            dist_name: ImmortalWrt
-            dist_tag: immortalwrt
-            release_title: ImmortalWrt
-            default_ip: 192.168.10.1
-            files_dir: files/immortalwrt
-            if: ${{ github.event.inputs.target == 'immortalwrt' || github.event.inputs.target == '' }}
-        os:
-          - ubuntu-22.04
-
-      fail-fast: false
-
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -110,7 +76,7 @@ jobs:
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php \
           /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/${{ matrix.os }})
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/ubuntu-22.04)
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
@@ -126,12 +92,20 @@ jobs:
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
-        mixkey: ${{ matrix.os }}-${{ env.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ matrix.dist_tag }}-v3
+        mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.REPO_BRANCH }}-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
 
-    - name: 加载 feeds 配置
-      run: |
-        cp "${{ matrix.feeds_conf }}" openwrt/feeds.conf
+    - name: 加载 feeds 配置 — iStoreOS
+      if: ${{ env.TARGET == 'istoreos' }}
+      run: cp feeds.d/istoreos openwrt/feeds.conf
+
+    - name: 加载 feeds 配置 — OpenWrt
+      if: ${{ env.TARGET == 'openwrt' }}
+      run: cp feeds.d/openwrt openwrt/feeds.conf
+
+    - name: 加载 feeds 配置 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      run: cp feeds.d/immortalwrt openwrt/feeds.conf
 
     - name: DIY part1 — 版本号
       run: |
@@ -144,21 +118,48 @@ jobs:
     - name: 安装 feeds
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: 加载配置
-      run: |
-        [ -e "${{ matrix.config_file }}" ] && cp "${{ matrix.config_file }}" openwrt/.config || echo ".config 未找到，跳过"
+    - name: 加载配置 — iStoreOS
+      if: ${{ env.TARGET == 'istoreos' }}
+      run: cp configs/istoreos.config openwrt/.config
 
-    - name: DIY part2 — 自定义注入
+    - name: 加载配置 — OpenWrt
+      if: ${{ env.TARGET == 'openwrt' }}
+      run: cp configs/openwrt.config openwrt/.config
+
+    - name: 加载配置 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      run: cp configs/immortalwrt.config openwrt/.config
+
+    - name: DIY part2 — iStoreOS
+      if: ${{ env.TARGET == 'istoreos' }}
       env:
         DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
-        DISTRO_FILES: ${{ matrix.files_dir }}
+        DISTRO_FILES: files/istoreos
       run: |
-        chmod +x "$DIY_P2_DIR/${{ matrix.distro }}.sh"
-        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/${{ matrix.distro }}.sh"
+        chmod +x "$DIY_P2_DIR/istoreos.sh"
+        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/istoreos.sh"
+
+    - name: DIY part2 — OpenWrt
+      if: ${{ env.TARGET == 'openwrt' }}
+      env:
+        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
+        DISTRO_FILES: files/openwrt
+      run: |
+        chmod +x "$DIY_P2_DIR/openwrt.sh"
+        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/openwrt.sh"
+
+    - name: DIY part2 — ImmortalWrt
+      if: ${{ env.TARGET == 'immortalwrt' }}
+      env:
+        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
+        DISTRO_FILES: files/immortalwrt
+      run: |
+        chmod +x "$DIY_P2_DIR/immortalwrt.sh"
+        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/immortalwrt.sh"
 
     - name: SSH
       uses: P3TERX/ssh2actions@v1.0.0
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
+      if: ${{ github.event.inputs.ssh == 'true' }}
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -194,7 +195,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
-        name: OpenWrt_bin_${{ matrix.dist_tag }}${{ env.FILE_DATE }}
+        name: OpenWrt_bin_${{ env.TARGET }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
     - name: 整理固件
@@ -210,40 +211,45 @@ jobs:
       uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
-        name: OpenWrt_firmware_${{ matrix.dist_tag }}${{ env.FILE_DATE }}
+        name: OpenWrt_firmware_${{ env.TARGET }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
     - name: 生成发布标签
       id: tag
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       env:
-        DIST_TITLE: ${{ matrix.release_title }}
-        LAN_IP: ${{ github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset || matrix.default_ip }}
+        LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
-        cat > release.txt
-        if [ "${{ matrix.distro }}" = "istoreos" ]; then
-          ROOT_PASS="password"
+        if [ "${{ env.TARGET }}" = "istoreos" ]; then
+          printf '%s\n' \
+            "设备: XR1710G (Airoha AN7581)" \
+            "发行版: iStoreOS" \
+            "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
+            "分支: xr1710g-6.18-integration" \
+            "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
+            "默认 LAN IP: $LAN_IP" \
+            "用户名: root" \
+            "密码: password" > release.txt
         else
-          ROOT_PASS="无密码（首次按 Enter，passwd 设新密码）"
+          printf '%s\n' \
+            "设备: XR1710G (Airoha AN7581)" \
+            "发行版: ${{ env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt' }}" \
+            "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
+            "分支: xr1710g-6.18-integration" \
+            "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
+            "默认 LAN IP: $LAN_IP" \
+            "用户名: root" \
+            "密码: 无密码（首次按 Enter，passwd 设新密码）" > release.txt
         fi
-        printf '%s\n' \
-          "设备: XR1710G (Airoha AN7581)" \
-          "发行版: ${{ matrix.release_title }}" \
-          "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
-          "分支: xr1710g-6.18-integration" \
-          "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
-          "默认 LAN IP: $LAN_IP" \
-          "用户名: root" \
-          "密码: $ROOT_PASS" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布到 Releases
       uses: softprops/action-gh-release@v2
       if: steps.tag.outputs.status == 'success' && !cancelled()
       with:
-        tag_name: ${{ matrix.dist_tag }}_${{ steps.tag.outputs.release_tag }}
-        name: ${{ matrix.release_title }} ${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{ env.TARGET }}_${{ steps.tag.outputs.release_tag }}
+        name: ${{ env.TARGET == 'istoreos' && 'iStoreOS' || (env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt') }} ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
@@ -260,6 +266,6 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release list --limit 100 --json tagName,publishedAt --jq '.[] | "\(.tagName)"' | \
-          grep "^${{ matrix.dist_tag }}_" | \
+          grep "^${{ env.TARGET }}_" | \
           tail -n +5 | \
           xargs -I {} gh release delete {} --yes --cleanup-tag || true
