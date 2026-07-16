@@ -222,6 +222,11 @@ jobs:
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
         cat > release.txt
+        if [ "${{ matrix.distro }}" = "istoreos" ]; then
+          ROOT_PASS="password"
+        else
+          ROOT_PASS="无密码（首次按 Enter，passwd 设新密码）"
+        fi
         printf '%s\n' \
           "设备: XR1710G (Airoha AN7581)" \
           "发行版: ${{ matrix.release_title }}" \
@@ -230,7 +235,7 @@ jobs:
           "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
           "默认 LAN IP: $LAN_IP" \
           "用户名: root" \
-          "密码: password" >> release.txt
+          "密码: $ROOT_PASS" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布到 Releases
