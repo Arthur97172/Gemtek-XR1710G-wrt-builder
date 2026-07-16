@@ -12,10 +12,6 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
-      default_lan_ip:
-        description: 'Default LAN IP (all distros)'
-        required: false
-        default: ''
       target:
         description: 'Select which distro(s) to build'
         required: false
@@ -26,6 +22,22 @@ on:
           - openwrt
           - immortalwrt
         default: all
+      lan_ip_preset:
+        description: 'LAN IP preset (used if custom is empty)'
+        required: false
+        type: choice
+        options:
+          - 192.168.10.1
+          - 192.168.100.1  # iStoreOS 旧默认
+          - 192.168.1.1    # OpenWrt/ImmortalWrt 默认
+          - 192.168.0.1    # 常见地址
+          - 10.0.0.1       # A 类私有
+          - 172.16.0.1     # B 类私有
+        default: 192.168.10.1
+      lan_ip_custom:
+        description: 'Custom LAN IP (override preset if filled)'
+        required: false
+        default: '192.168.10.1'
   schedule:
    - cron: 0 16 * * *
 
@@ -51,7 +63,7 @@ jobs:
             dist_name: iStoreOS
             dist_tag: istoreos
             release_title: iStoreOS
-            default_ip: 192.168.100.1
+            default_ip: 192.168.10.1
             files_dir: files/istoreos
             if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'istoreos' || github.event.inputs.target == '' }}
           - distro: openwrt
@@ -60,7 +72,7 @@ jobs:
             dist_name: OpenWrt
             dist_tag: openwrt
             release_title: OpenWrt
-            default_ip: 192.168.1.1
+            default_ip: 192.168.10.1
             files_dir: files/openwrt
             if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'openwrt' || github.event.inputs.target == '' }}
           - distro: immortalwrt
@@ -69,7 +81,7 @@ jobs:
             dist_name: ImmortalWrt
             dist_tag: immortalwrt
             release_title: ImmortalWrt
-            default_ip: 192.168.1.1
+            default_ip: 192.168.10.1
             files_dir: files/immortalwrt
             if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'immortalwrt' || github.event.inputs.target == '' }}
         os:
@@ -138,7 +150,7 @@ jobs:
 
     - name: DIY part2 — 自定义注入
       env:
-        DEFAULT_LAN_IP: ${{ github.event.inputs.default_lan_ip || matrix.default_ip }}
+        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset || matrix.default_ip }}
         DISTRO_FILES: ${{ matrix.files_dir }}
       run: |
         chmod +x "$DIY_P2_DIR/${{ matrix.distro }}.sh"
@@ -206,7 +218,7 @@ jobs:
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       env:
         DIST_TITLE: ${{ matrix.release_title }}
-        LAN_IP: ${{ github.event.inputs.default_lan_ip || matrix.default_ip }}
+        LAN_IP: ${{ github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset || matrix.default_ip }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
         cat > release.txt

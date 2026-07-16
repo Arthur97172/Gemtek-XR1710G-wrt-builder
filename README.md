@@ -6,17 +6,17 @@
 
 | 发行版 | 默认 LAN IP | Web 管理地址 | 备注 |
 |--------|------------|-------------|------|
-| **iStoreOS** | `192.168.100.1` | `http://iStoreOS.lan/` | LuCI + iStore 管理面板 |
-| **OpenWrt 24.10** | `192.168.1.1` | `http://192.168.1.1` | 标准 LuCI |
-| **ImmortalWrt 24.10** | `192.168.1.1` | `http://192.168.1.1` | 增强插件生态 |
+| **iStoreOS** | `192.168.10.1` | `http://iStoreOS.lan/` | LuCI + iStore 管理面板 |
+| **OpenWrt 24.10** | `192.168.10.1` | `http://192.168.10.1` | 标准 LuCI |
+| **ImmortalWrt 24.10** | `192.168.10.1` | `http://192.168.10.1` | 增强插件生态 |
 
 **通用登录：** 用户名 `root` / 密码 `password`，第一个网口默认 WAN，其余 LAN。
 
 ## 自定义默认 LAN IP
 
-编译前在 GitHub Actions 触发构建时填写 `default_lan_ip` 参数（可选），可同时覆盖三个发行版的默认 IP。
+编译前在 GitHub Actions 触发构建时选择 `lan_ip_preset`（常用 IP 下拉）或填入 `lan_ip_custom`（完全自定义）。
 
-不填写时各发行版使用自己的默认值（见上表）。
+不填写时统一使用 `192.168.10.1`。三个发行版的 LAN IP 同时生效。
 
 ## 编译
 
@@ -25,7 +25,8 @@
 | 参数 | 说明 |
 |------|------|
 | `target` | 可选，指定编译哪个发行版：`all`（默认）、`istoreos`、`openwrt`、`immortalwrt` |
-| `default_lan_ip` | 可选，三个 distro 同时使用此 IP（留空则用默认值）|
+| `lan_ip_preset` | 可选，预设 IP 下拉（192.168.10.1 / 192.168.100.1 / 192.168.1.1 / 10.0.0.1 / 172.16.0.1）|
+| `lan_ip_custom` | 可选，填写后以此 IP 为准（覆盖 preset）
 | `ssh` | 可选，填 `true` 开启 SSH 调试会话 |
 
 选择 `target` 时，每次只编译该发行版，可用于单独更新某个固件而不触发其他两个。
