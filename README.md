@@ -40,7 +40,7 @@
 ## 执行顺序
 
 ```
-diy-part1.sh              →  feeds update/install 之前运行，all distros 共用
+scripts/diy-part1.sh         →  feeds update/install 之前运行，all distros 共用
 diy-part2.d/{distro}.sh   →  .config 加载之后、make 之前运行，每个 distro 独立
 files/{distro}/            →  make 阶段自动注入固件文件系统
 ```
@@ -178,7 +178,7 @@ sed -i "s/\${DEFAULT_LAN_IP}/${DEFAULT_LAN_IP}/g" \
 Gemtek-XR1710G-wrt-builder/
 ├── .github/workflows/build.yml     # CI 构建脚本
 ├── depends/ubuntu-22.04            # 构建依赖
-├── diy-part1.sh                   # 版本号补丁，all distros 共用
+├── scripts/diy-part1.sh      # 版本号补丁，all distros 共用
 ├── feeds.d/                       # feeds 配置目录
 │   ├── istoreos
 │   ├── openwrt

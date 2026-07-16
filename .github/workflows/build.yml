@@ -135,8 +135,8 @@ jobs:
 
     - name: DIY part1 — 版本号
       run: |
-        chmod +x diy-part1.sh
-        cd openwrt && "$GITHUB_WORKSPACE/diy-part1.sh"
+        chmod +x scripts/diy-part1.sh
+        cd openwrt && "$GITHUB_WORKSPACE/scripts/diy-part1.sh"
 
     - name: 更新 feeds
       run: cd openwrt && ./scripts/feeds update -a
