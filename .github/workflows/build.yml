@@ -21,25 +21,8 @@ on:
           - openwrt
           - immortalwrt
         default: immortalwrt
-      lan_ip_preset:
-        description: 'LAN IP preset (used when custom is not selected)'
-        required: false
-        type: choice
-        options:
-          - custom
-          - 192.168.10.1
-          - 192.168.100.1  # iStoreOS 旧默认
-          - 192.168.1.1    # OpenWrt/ImmortalWrt 默认
-          - 192.168.0.1    # 常见地址
-          - 10.0.0.1       # A 类私有
-          - 172.16.0.1     # B 类私有
-        default: 192.168.10.1
-      lan_ip_custom:
-        description: 'Custom LAN IP (only effective when preset is custom)'
-        required: false
-        default: '192.168.5.1'
   schedule:
-   - cron: 0 16 * * *
+    - cron: "0 16 * * *"
 
 env:
   ARCHITECTURE: xr1710g
@@ -49,8 +32,6 @@ env:
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
-  REPO_URL: ${{ github.event.inputs.target == 'istoreos' && 'https://github.com/hx801217/istoreos' || (github.event.inputs.target == 'immortalwrt' && 'https://github.com/lvcdy/openwrt_xr1710g' || 'https://github.com/lvcdy/openwrt_xr1710g') }}
-  REPO_BRANCH: ${{ github.event.inputs.target == 'istoreos' && 'istoreos-24.10' || (github.event.inputs.target == 'immortalwrt' && 'main' || 'main') }}
 
 jobs:
   build:
@@ -89,7 +70,7 @@ jobs:
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
-        chmod -R +x openwrt/scripts/
+        chmod -R +x openwrt/
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 克隆源码 — OpenWrt
@@ -100,7 +81,7 @@ jobs:
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
-        chmod -R +x openwrt/scripts/
+        chmod -R +x openwrt/
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 克隆源码 — iStoreOS
@@ -111,7 +92,7 @@ jobs:
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
-        chmod -R +x openwrt/scripts/
+        chmod -R +x openwrt/
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 缓存构建动作
@@ -158,27 +139,18 @@ jobs:
 
     - name: DIY part2 — iStoreOS
       if: ${{ env.TARGET == 'istoreos' }}
-      env:
-        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
-        DISTRO_FILES: files/istoreos
       run: |
         chmod +x "$DIY_P2_DIR/istoreos.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/istoreos.sh"
 
     - name: DIY part2 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
-      env:
-        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
-        DISTRO_FILES: files/openwrt
       run: |
         chmod +x "$DIY_P2_DIR/openwrt.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/openwrt.sh"
 
     - name: DIY part2 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
-      env:
-        DEFAULT_LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
-        DISTRO_FILES: files/immortalwrt
       run: |
         chmod +x "$DIY_P2_DIR/immortalwrt.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/immortalwrt.sh"
@@ -255,28 +227,21 @@ jobs:
     - name: 生成发布标签
       id: tag
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
-      env:
-        LAN_IP: ${{ github.event.inputs.lan_ip_preset == 'custom' && github.event.inputs.lan_ip_custom || github.event.inputs.lan_ip_preset }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H.%M')" >> $GITHUB_OUTPUT
+        DISTRO_NAME="${{ env.TARGET == 'istoreos' && 'iStoreOS' || (env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt') }}"
         if [ "${{ env.TARGET }}" = "istoreos" ]; then
           printf '%s\n' \
             "设备: XR1710G (Airoha AN7581)" \
-            "发行版: iStoreOS" \
-            "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
-            "分支: xr1710g-6.18-integration" \
+            "发行版: $DISTRO_NAME" \
             "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
-            "默认 LAN IP: $LAN_IP" \
             "用户名: root" \
             "密码: password" > release.txt
         else
           printf '%s\n' \
             "设备: XR1710G (Airoha AN7581)" \
-            "发行版: ${{ env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt' }}" \
-            "源码: YYH2913/openwrt (xr1710g-6.18-integration)" \
-            "分支: xr1710g-6.18-integration" \
+            "发行版: $DISTRO_NAME" \
             "编译时间: $(date +'%Y年%m月%d日%H时%M分')" \
-            "默认 LAN IP: $LAN_IP" \
             "用户名: root" \
             "密码: 无密码（首次按 Enter，passwd 设新密码）" > release.txt
         fi
