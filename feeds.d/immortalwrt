@@ -1,3 +1,2 @@
 src-include defaults feeds.conf.default
-src-git immortalwrt_packages https://github.com/immortalwrt/packages.git;master
-src-git immortalwrt_luci https://github.com/immortalwrt/luci.git;master
+src-git kcptun https://github.com/kuoruan/openwrt-kcptun.git
