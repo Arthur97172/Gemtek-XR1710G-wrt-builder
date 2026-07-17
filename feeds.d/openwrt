@@ -1,1 +1,2 @@
 src-include defaults feeds.conf.default
+src-git airohanpu https://github.com/rchen14b/luci-app-airoha-npu.git;main
