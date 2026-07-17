@@ -5,4 +5,3 @@ src-git immortalwrt_routing https://github.com/openwrt/routing.git
 src-git immortalwrt_telephony https://github.com/openwrt/telephony.git
 src-git immortalwrt_video https://github.com/openwrt/video.git
 src-git immortalwrt_targets https://github.com/openwrt/targets.git
-src-git kcptun https://github.com/kuoruan/openwrt-kcptun.git
