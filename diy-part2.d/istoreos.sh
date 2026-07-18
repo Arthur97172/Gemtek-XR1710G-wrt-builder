@@ -8,6 +8,7 @@ PKG_CONF="$GITHUB_WORKSPACE/packages/istoreos.conf"
 
 # ===== 修改内核选项示例（取消注释即可启用）=====
 # sed -i '/CONFIG_PACKAGE_kmod-usb-ohci/d' .config
+sed -i '/CONFIG_PACKAGE_mihomo-alpha/d' .config
 
 # ===== UCI 默认值示例 ======
 # mkdir -p openwrt/files/etc/uci-defaults
