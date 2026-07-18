@@ -15,8 +15,8 @@ cp -r tmp/openwrt-packages/libs/libffi feeds/packages/libs/
 rm -rf tmp/openwrt-packages
 
 # ===== 追加第三方插件包 =====
-PKG_CONF="$GITHUB_WORKSPACE/packages/openwrt.conf"
-[ -f "$PKG_CONF" ] && grep -v '^#' "$PKG_CONF" | grep -v '^$' >> .config && echo "已加载第三方插件: openwrt" || true
+PKG_CONF="$GITHUB_WORKSPACE/packages/immortalwrt.conf"
+[ -f "$PKG_CONF" ] && grep -v '^#' "$PKG_CONF" | grep -v '^$' >> .config && echo "已加载第三方插件: immortalwrt" || true
 
 # ===== 清理无用配置 =====
 sed -i '/CONFIG_PACKAGE_luci-i18n-clientstatus-zh-cn/d' .config
