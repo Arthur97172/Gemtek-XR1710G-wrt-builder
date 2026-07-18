@@ -1,5 +1,5 @@
 #!/bin/bash
-# OpenWrt DIY part2
+# Immortalwrt DIY part2
 # — 在 .config 加载之后、make 之前运行 —
 
 # 1. 强行修复 luci-app-clientstatus 源码作者引发的循环依赖死锁
