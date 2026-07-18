@@ -204,6 +204,19 @@ jobs:
         cd openwrt/bin/targets/*/*
         rm -rf packages
         shopt -s globstar nullglob
+
+        # 1. 专门针对包含 snapshot 的文件进行精准改名
+        for f in **/*; do
+          [ -f "$f" ] || continue
+          # 检查文件名中是否包含 -snapshot-
+          if [[ "$f" == *"-snapshot-"* ]]; then
+            # 动态替换去掉 -snapshot-开头的两段随机字符（即 -snapshot-rXXXXX-XXXXXXXX）
+            new_f=$(echo "$f" | sed -r 's/-snapshot-[^-]+-[^-]+//')
+            mv "$f" "$new_f"
+          fi
+        done
+
+        # 2. 保留改名后的核心固件和配置文件，删掉其余无用文件
         for f in **/*; do
           [ -f "$f" ] || continue
           case "$f" in
@@ -215,6 +228,7 @@ jobs:
             *) rm -f "$f" ;;
           esac
         done
+
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
