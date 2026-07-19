@@ -252,7 +252,7 @@ jobs:
             "发行版: $DISTRO_NAME" \
             "编译时间: $(date +'%Y年%m月%d日')" \
             "用户名: root" \
-            "密码: 无密码（首次按 Enter，passwd 设新密码）" > release.txt
+            "密码: 无密码（首次按 Enter）" > release.txt
         fi
         echo "status=success" >> $GITHUB_OUTPUT
 
