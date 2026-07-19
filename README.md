@@ -4,11 +4,11 @@
 
 ## 固件发行版
 
-| 发行版 | 版本 | 默认用户名 | 默认密码 |
-|--------|------|-----------|---------|
-| **iStoreOS** | SNAPSHOT | `root` | `password` |
-| **OpenWrt** | SNAPSHOT | `root` |  `password` |
-| **ImmortalWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`） |
+| 发行版 | 版本 |  默认用户名 |默认IP | 默认密码 |
+|--------|------|-----------|-----------|---------|
+| **iStoreOS** | SNAPSHOT | 192.168.1.1 | `root` | `password` |
+| **OpenWrt** | SNAPSHOT | 192.168.1.1 | `root` |  `password` |
+| **ImmortalWrt** | SNAPSHOT | 192.168.1.1 | `root` | 无密码（首次按 `Enter`） |
 
 **通用：第一个网口默认 WAN，其余 LAN。各发行版使用其系统默认 LAN IP。**
 
