@@ -21,8 +21,6 @@ on:
           - openwrt
           - immortalwrt
         default: immortalwrt
-  schedule:
-    - cron: "0 16 * * *"
 
 env:
   ARCHITECTURE: xr1710g
