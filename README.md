@@ -7,8 +7,8 @@
 | 发行版 | 版本 | 默认用户名 | 默认密码 |
 |--------|------|-----------|---------|
 | **iStoreOS** | SNAPSHOT | `root` | `password` |
-| **OpenWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
-| **ImmortalWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`，`passwd` 设新密码） |
+| **OpenWrt** | SNAPSHOT | `root` |  `password` |
+| **ImmortalWrt** | SNAPSHOT | `root` | 无密码（首次按 `Enter`） |
 
 **通用：第一个网口默认 WAN，其余 LAN。各发行版使用其系统默认 LAN IP。**
 
