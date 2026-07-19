@@ -25,7 +25,7 @@
 
 **自动编译：** 每天北京时间 `00:00` 自动触发。
 
-每个 Release tag 格式: `{dist_tag}_YYYY.MM.Dd-HH.MM`
+每个 Release tag 格式: `{dist_tag}_YYYY.MM.Dd`
 
 ---
 
