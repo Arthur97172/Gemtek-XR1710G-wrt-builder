@@ -236,24 +236,30 @@ jobs:
       id: tag
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
-        # 去掉了 -%H.%M，仅保留年月日
+        # 仅保留年月日作为标签
         echo "release_tag=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-        DISTRO_NAME="${{ env.TARGET == 'istoreos' && 'iStoreOS' || (env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt') }}"
-        if [ "${{ env.TARGET }}" = "istoreos" ]; then
-          printf '%s\n' \
-            "设备: XR1710G (Airoha AN7581)" \
-            "发行版: $DISTRO_NAME" \
-            "编译时间: $(date +'%Y年%m月%d日')" \
-            "用户名: root" \
-            "密码: password" > release.txt
+        
+        # 转换发行版显示名称
+        TARGET_ENV="${{ env.TARGET }}"
+        if [ "$TARGET_ENV" = "istoreos" ]; then
+          DISTRO_NAME="iStoreOS"
+          PASSWORD_INFO="password"
+        elif [ "$TARGET_ENV" = "openwrt" ]; then
+          DISTRO_NAME="OpenWrt"
+          PASSWORD_INFO="password"
         else
-          printf '%s\n' \
-            "设备: XR1710G (Airoha AN7581)" \
-            "发行版: $DISTRO_NAME" \
-            "编译时间: $(date +'%Y年%m月%d日')" \
-            "用户名: root" \
-            "密码: 无密码（首次按 Enter）" > release.txt
+          DISTRO_NAME="ImmortalWrt"
+          PASSWORD_INFO="无密码（首次直接按 Enter 登录）"
         fi
+
+        # 写入发行说明文件
+        printf '%s\n' \
+          "设备: XR1710G (Airoha AN7581)" \
+          "发行版: $DISTRO_NAME" \
+          "编译时间: $(date +'%Y年%m月%d日')" \
+          "用户名: root" \
+          "密码: $PASSWORD_INFO" > release.txt
+
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布到 Releases
