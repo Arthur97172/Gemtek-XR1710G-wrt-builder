@@ -27,6 +27,7 @@ env:
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
+  FINAL_WRT: ${{ inputs.target }}
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
