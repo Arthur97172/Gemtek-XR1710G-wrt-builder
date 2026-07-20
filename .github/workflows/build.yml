@@ -275,7 +275,7 @@ jobs:
           "设备: XR1710G (Airoha AN7581)" \
           "发行版: $DISTRO_NAME" \
           "编译时间: $(date +'%Y年%m月%d日')" \
-          "登录IP: 192.168.1.1" \
+          "登录IP: ${{ inputs.ipaddr }}" \
           "用户名: root" \
           "密码: $PASSWORD_INFO" > release.txt
 
