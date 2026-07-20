@@ -6,7 +6,6 @@ src-git oaf https://github.com/jjm2473/OpenAppFilter.git;dev4
 src-git linkease_nas https://github.com/linkease/nas-packages.git;master
 src-git linkease_nas_luci https://github.com/linkease/nas-packages-luci.git;main
 src-git jjm2473_apps https://github.com/jjm2473/openwrt-apps.git;main
-src-git airohanpu https://github.com/rchen14b/luci-app-airoha-npu.git;main
 src-git kenzok8 https://github.com/kenzok8/openwrt-clashoo.git;main
 src-git sirpdboy https://github.com/sirpdboy/luci-app-poweroffdevice.git;master
 src-git wukongdaily https://github.com/wukongdaily/luci-app-run.git;master
