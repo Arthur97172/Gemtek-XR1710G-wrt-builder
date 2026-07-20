@@ -172,6 +172,8 @@ jobs:
       run: |
         chmod +x "$DIY_P2_DIR/immortalwrt.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/immortalwrt.sh"
+        chmod +x patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch
+        cp patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch openwrt/target/linux/airoha/patches-6.18/
 
     - name: SSH
       uses: P3TERX/ssh2actions@v1.0.0
