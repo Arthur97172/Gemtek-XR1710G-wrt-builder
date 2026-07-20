@@ -115,22 +115,33 @@ jobs:
       - name: Clear Target Files
         if: github.event.inputs.action == 'clear'
         run: |
-          echo "=== 清理 apps/ 下的目标文件夹 ==="
+          echo "=== 清理 apps/ 下的目标文件夹及备份文件 ==="
           FOLDERS=("luci-app-airoha-fancontrol" "luci-app-airoha-flowsense" "luci-app-airoha-npu")
 
+          # 1. 删除指定的目标文件夹及其 .bak 文件夹
           for dir in "${FOLDERS[@]}"; do
             if [ -d "apps/$dir" ]; then
               rm -rf "apps/$dir"
               echo "✅ 已删除 apps/$dir"
             fi
+            if [ -d "apps/${dir}.bak" ]; then
+              rm -rf "apps/${dir}.bak"
+              echo "✅ 已删除备份目录 apps/${dir}.bak"
+            fi
           done
+
+          # 2. 扫尾：清理 apps/ 目录下任何残留的 *.bak 目录和文件
+          if [ -d "apps" ]; then
+            find apps/ -name "*.bak" -exec rm -rf {} + 2>/dev/null || true
+            echo "✅ 已彻底扫描并清理所有残留的 *.bak 文件及目录"
+          fi
 
           echo ""
           echo "正在提交清理..."
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add apps/ 2>/dev/null || true
-          git commit -m "clear: remove airoha luci apps from apps/ ($(date +%Y%m%d))" || echo "无需提交"
+          git commit -m "clear: remove airoha luci apps and backup files from apps/ ($(date +%Y%m%d))" || echo "无需提交"
 
           echo ""
           echo "=== 推送前同步远程 ==="
