@@ -6,7 +6,6 @@
 
 | 发行版 | 版本 |  默认用户名 |默认IP（可自定义） | 默认密码 |
 |--------|------|-----------|-----------|---------|
-| **iStoreOS** | SNAPSHOT | 192.168.1.1 | `root` | `password` |
 | **OpenWrt** | SNAPSHOT | 192.168.1.1 | `root` |  `password` |
 | **ImmortalWrt** | SNAPSHOT | 192.168.1.1 | `root` | 无密码（首次按 `Enter`） |
 
@@ -18,7 +17,7 @@
 
 | 参数 | 说明 |
 |------|------|
-| `target` | 指定编译哪个发行版：`istoreos` / `openwrt` / `immortalwrt`（默认 `immortalwrt`） |
+| `target` | 指定编译哪个发行版：`openwrt` / `immortalwrt`（默认 `immortalwrt`） |
 | `ssh` | 可选，填 `true` 开启 SSH 调试会话 |
 
 选择 `target` 时，每次只编译该发行版，可用于单独更新某个固件而不触发其他两个。
@@ -117,19 +116,15 @@ Gemtek-XR1710G-wrt-builder/
 ├── depends/ubuntu-22.04            # 构建依赖
 ├── scripts/diy-part1.sh      # 版本号补丁，all distros 共用
 ├── feeds.d/                       # feeds 配置目录
-│   ├── istoreos
 │   ├── openwrt
 │   └── immortalwrt
 ├── configs/                       # 内核配置目录
-│   ├── istoreos.config
 │   ├── openwrt.config
 │   └── immortalwrt.config
 ├── diy-part2.d/                   # 每个 distro 独立的配置注入脚本
-│   ├── istoreos.sh
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
 └── packages/                      # 每个 distro 独立的第三方插件配置
-    ├── istoreos.conf
     ├── openwrt.conf
     └── immortalwrt.conf
 ```
@@ -142,7 +137,6 @@ Gemtek-XR1710G-wrt-builder/
 
 | 发行版 | 插件配置 |
 |--------|---------|
-| iStoreOS | `packages/istoreos.conf` |
 | OpenWrt | `packages/openwrt.conf` |
 | ImmortalWrt | `packages/immortalwrt.conf` |
 
@@ -194,7 +188,6 @@ git push origin main
 ## 鸣谢
 
 - [YYH2913/openwrt](https://github.com/YYH2913/openwrt) — XR1710G 设备适配
-- [istoreos](https://github.com/istoreos/istoreos)
 - [OpenWrt](https://github.com/openwrt/openwrt)
 - [ImmortalWrt](https://github.com/immortalwrt/immortalwrt)
 - [P3TERX/Actions-OpenWrt](https://github.com/P3TERX/Actions-OpenWrt)
