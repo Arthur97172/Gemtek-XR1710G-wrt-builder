@@ -17,7 +17,6 @@ on:
         required: true
         type: choice
         options:
-          - istoreos
           - openwrt
           - immortalwrt
         default: immortalwrt
@@ -31,7 +30,7 @@ env:
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
-  WRT_NAME: ${{ (inputs.target == 'openwrt') && 'OpenWrt' || (inputs.target == 'istoreos') && 'iStoreOS' || 'ImmortalWrt' }}
+  WRT_NAME: ${{ (inputs.target == 'openwrt') && 'OpenWrt' || 'ImmortalWrt' }}
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
@@ -97,17 +96,6 @@ jobs:
         chmod -R +x openwrt/
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: 克隆源码 — iStoreOS
-      if: ${{ env.TARGET == 'istoreos' }}
-      env:
-        REPO_URL: https://github.com/hx801217/istoreos
-        REPO_BRANCH: istoreos-24.10
-      run: |
-        df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
-        chmod -R +x openwrt/
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-
     - name: 缓存构建动作
       uses: klever1988/cachewrtbuild@main
       with:
@@ -119,10 +107,6 @@ jobs:
       run: |
         cp files/etc/uci-defaults/99-custom.sh openwrt/target/linux/airoha/an7581/base-files/etc/uci-defaults/
         echo "✅ 文件准备完成"
-
-    - name: 加载 feeds 配置 — iStoreOS
-      if: ${{ env.TARGET == 'istoreos' }}
-      run: cp feeds.d/istoreos openwrt/feeds.conf
 
     - name: 加载 feeds 配置 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
@@ -143,10 +127,6 @@ jobs:
     - name: 安装 feeds
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: 加载配置 — iStoreOS
-      if: ${{ env.TARGET == 'istoreos' }}
-      run: cp configs/istoreos.config openwrt/.config
-
     - name: 加载配置 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
       run: cp configs/openwrt.config openwrt/.config
@@ -154,24 +134,6 @@ jobs:
     - name: 加载配置 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
       run: cp configs/immortalwrt.config openwrt/.config
-
-    - name: DIY part2 — iStoreOS
-      if: ${{ env.TARGET == 'istoreos' }}
-      run: |
-        # 1. 赋予 apps/ 目录下所有文件可执行权限
-        if [ -d "apps" ]; then
-          chmod -R +x apps/
-          # 2. 只有当 apps/ 目录下有内容时才进行复制
-          if [ -n "$(ls -A apps/ 2>/dev/null)" ]; then
-            cp -a apps/. openwrt/package/
-            echo "=== 已成功复制 apps/ 内容到 openwrt/package/ ==="
-          fi
-        fi
-        ls -la openwrt/package/
-        
-        chmod -R +x apps/
-        chmod +x "$DIY_P2_DIR/istoreos.sh"
-        cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/istoreos.sh"
 
     - name: DIY part2 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
@@ -294,10 +256,7 @@ jobs:
         
         # 转换发行版显示名称
         TARGET_ENV="${{ env.TARGET }}"
-        if [ "$TARGET_ENV" = "istoreos" ]; then
-          DISTRO_NAME="iStoreOS"
-          PASSWORD_INFO="password"
-        elif [ "$TARGET_ENV" = "openwrt" ]; then
+        if [ "$TARGET_ENV" = "openwrt" ]; then
           DISTRO_NAME="OpenWrt"
           PASSWORD_INFO="password"
         else
