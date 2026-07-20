@@ -21,13 +21,17 @@ on:
           - openwrt
           - immortalwrt
         default: immortalwrt
-
+      ipaddr:
+        description: "请设置软路由的管理地址,格式:192.168.x.1"
+        required: true
+        default: "192.168.1.1"
+        
 env:
   ARCHITECTURE: xr1710g
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
-  FINAL_WRT: ${{ inputs.target }}
+  WRT_NAME: ${{ (inputs.target == 'openwrt') && 'OpenWrt' || (inputs.target == 'istoreos') && 'iStoreOS' || 'ImmortalWrt' }}
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
@@ -60,6 +64,15 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+
+    - name: ⚙️ Set custom IP config
+      run: |
+        CONFIG_PATH="./files/etc/uci-defaults/99-custom.sh"
+        echo "当前网络配置路径: $CONFIG_PATH"
+        sed -i "s/__IPADDR__/${{ inputs.ipaddr }}/g" "$CONFIG_PATH"
+        sed -i "s/WRTVERSIONINFO/${{ env.WRT_NAME }}/g" "$CONFIG_PATH"
+        echo "✅ 配置修改完成，输出预览："
+        cat "$CONFIG_PATH"
 
     - name: 克隆源码 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
@@ -100,6 +113,9 @@ jobs:
         ccache: 'true'
         mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
+
+    - name: 加载 99-custom.sh 配置
+      run: cp files/etc/uci-defaults/99-custom.sh openwrt/files/etc/uci-defaults/
 
     - name: 加载 feeds 配置 — iStoreOS
       if: ${{ env.TARGET == 'istoreos' }}
