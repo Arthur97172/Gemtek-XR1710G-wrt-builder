@@ -158,20 +158,53 @@ jobs:
     - name: DIY part2 — iStoreOS
       if: ${{ env.TARGET == 'istoreos' }}
       run: |
+        # 1. 赋予 apps/ 目录下所有文件可执行权限
+        if [ -d "apps" ]; then
+          chmod -R +x apps/
+          # 2. 只有当 apps/ 目录下有内容时才进行复制
+          if [ -n "$(ls -A apps/ 2>/dev/null)" ]; then
+            cp -a apps/. openwrt/package/
+            echo "=== 已成功复制 apps/ 内容到 openwrt/package/ ==="
+          fi
+        fi
+        ls -la openwrt/package/
+        
+        chmod -R +x apps/
         chmod +x "$DIY_P2_DIR/istoreos.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/istoreos.sh"
 
     - name: DIY part2 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
       run: |
+        # 1. 赋予 apps/ 目录下所有文件可执行权限
+        if [ -d "apps" ]; then
+          chmod -R +x apps/
+          # 2. 只有当 apps/ 目录下有内容时才进行复制
+          if [ -n "$(ls -A apps/ 2>/dev/null)" ]; then
+            cp -a apps/. openwrt/package/
+            echo "=== 已成功复制 apps/ 内容到 openwrt/package/ ==="
+          fi
+        fi
+        ls -la openwrt/package/
+        
         chmod +x "$DIY_P2_DIR/openwrt.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/openwrt.sh"
 
     - name: DIY part2 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
       run: |
-        chmod +x patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch
-        cp patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch openwrt/target/linux/airoha/patches-6.18/
+        # 1. 赋予 apps/ 目录下所有文件可执行权限
+        if [ -d "apps" ]; then
+          chmod -R +x apps/
+          # 2. 只有当 apps/ 目录下有内容时才进行复制
+          if [ -n "$(ls -A apps/ 2>/dev/null)" ]; then
+            cp -a apps/. openwrt/package/
+            echo "=== 已成功复制 apps/ 内容到 openwrt/package/ ==="
+          fi
+        fi
+        ls -la openwrt/package/
+        #chmod +x patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch
+        #cp patch/178-01-net-airoha-Implement-HW-GRO-TCP-support.patch openwrt/target/linux/airoha/patches-6.18/
         chmod +x "$DIY_P2_DIR/immortalwrt.sh"
         cd openwrt && "$GITHUB_WORKSPACE/$DIY_P2_DIR/immortalwrt.sh"
 
