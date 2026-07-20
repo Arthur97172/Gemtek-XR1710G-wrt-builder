@@ -1,5 +1,5 @@
-name: Sync Target Files
-run-name: Sync XR1710G Target Files
+name: Sync APP Files
+run-name: Sync XR1710G APP Files
 
 on:
   workflow_dispatch:
@@ -51,7 +51,7 @@ jobs:
             fi
           done
 
-      - name: Sync Target Files to apps/
+      - name: Sync App Files to apps/
         if: github.event.inputs.action == 'sync'
         run: |
           echo "=== 开始同步到本地 apps/ 目录 ==="
