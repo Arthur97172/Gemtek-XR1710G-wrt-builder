@@ -116,7 +116,8 @@ jobs:
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 加载 99-custom.sh 配置
-      run: cp files/etc/uci-defaults/99-custom.sh openwrt/files/etc/uci-defaults/
+      run: cp files/etc/uci-defaults/99-custom.sh openwrt/target/linux/airoha/an7581/base-files/etc/uci-defaults/
+       echo "✅ 文件准备完成"
 
     - name: 加载 feeds 配置 — iStoreOS
       if: ${{ env.TARGET == 'istoreos' }}
