@@ -45,10 +45,6 @@ iStoreOS-for-Gemtek-XR1710G/
 ├── feeds.d/                   # feeds 源配置
 │   ├── openwrt
 │   └── immortalwrt
-├── files/                     # 固件文件系统覆盖
-│   └── etc/
-│       ├── banner
-│       └── uci-defaults/99-custom.sh
 ├── packages/                  # 每个 distro 的第三方插件配置
 │   ├── openwrt.conf
 │   └── immortalwrt.conf
