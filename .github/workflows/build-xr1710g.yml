@@ -13,8 +13,8 @@ jobs:
       - name: Checkout offload base
         uses: actions/checkout@v4
         with:
-          repository: OpenWRT-fanboy/OpenW1700k
-          ref: offload
+          repository: YYH2913/openwrt
+          ref: xr1710g-6.18-integration
 
       - name: Setup build deps
         run: |
