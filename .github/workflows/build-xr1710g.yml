@@ -1,6 +1,7 @@
 name: Build XR1710G Firmware
 
 on:
+  repository_dispatch:
   workflow_dispatch:
       target:
         description: 'Select which distro to build'
