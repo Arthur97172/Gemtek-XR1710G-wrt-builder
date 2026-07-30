@@ -1,0 +1,479 @@
+name: Build XR1710G Firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout offload base
+        uses: actions/checkout@v4
+        with:
+          repository: OpenWRT-fanboy/OpenW1700k
+          ref: offload
+
+      - name: Setup build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+            python3 python3-setuptools rsync swig unzip \
+            zlib1g-dev file wget cpio bc ccache libelf-dev quilt
+
+      - name: Cache dl (source tarballs)
+        uses: actions/cache@v4
+        with:
+          path: dl
+          key: dl-${{ github.run_id }}
+          restore-keys: dl-
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            staging_dir/toolchain-*
+            build_dir/toolchain-*
+          key: tc-${{ hashFiles('toolchain/**', 'include/toolchain*.mk') }}
+          restore-keys: tc-
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ hashFiles('target/linux/airoha/an7581/config-6.18') }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ hashFiles('target/linux/airoha/an7581/config-6.18') }}-
+            ccache-
+
+      - name: Apply overclock (+200MHz) and performance governor
+        run: |
+          set -ex
+
+          # --- config-6.18: switch to performance governor ---
+          sed -i \
+            -e 's/CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND=y/# CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND is not set/' \
+            -e 's/# CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE is not set/CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y/' \
+            target/linux/airoha/an7581/config-6.18
+
+          # --- an7581.dtsi: shift OPP table +200MHz ---
+          # Two-phase: values first (with label context), labels second (reverse order)
+
+          # PHASE 1: opp-hz values
+          sed -i '/opp-500000000 {/,/};/s/<500000000>/<700000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-550000000 {/,/};/s/<550000000>/<750000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-600000000 {/,/};/s/<600000000>/<800000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-650000000 {/,/};/s/<650000000>/<850000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-7000000000 {/,/};/s/<700000000>/<900000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-7500000000 {/,/};/s/<750000000>/<950000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-8000000000 {/,/};/s/<800000000>/<1000000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-8500000000 {/,/};/s/<850000000>/<1050000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-9000000000 {/,/};/s/<900000000>/<1100000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-9500000000 {/,/};/s/<950000000>/<1150000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-10000000000 {/,/};/s/<1000000000>/<1200000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-10500000000 {/,/};/s/<1050000000>/<1250000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-11000000000 {/,/};/s/<1100000000>/<1300000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-11500000000 {/,/};/s/<1150000000>/<1350000000>/' target/linux/airoha/dts/an7581.dtsi
+          sed -i '/opp-12000000000 {/,/};/s/<1200000000>/<1400000000>/' target/linux/airoha/dts/an7581.dtsi
+
+          # PHASE 2: OPP labels (reverse order)
+          sed -i 's/opp-12000000000 {/opp-14000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-11500000000 {/opp-13500000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-11000000000 {/opp-13000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-10500000000 {/opp-12500000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-10000000000 {/opp-12000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-9500000000 {/opp-11500000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-9000000000 {/opp-11000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-8500000000 {/opp-10500000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-8000000000 {/opp-10000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-7500000000 {/opp-9500000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-7000000000 {/opp-9000000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-650000000 {/opp-850000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-600000000 {/opp-800000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-550000000 {/opp-750000000 {/' target/linux/airoha/dts/an7581.dtsi
+          sed -i 's/opp-500000000 {/opp-700000000 {/' target/linux/airoha/dts/an7581.dtsi
+
+          # --- 940-pmdomain patch: bump base freq 500→700 ---
+          sed -i 's/unsigned int freq_mhz = 500 + state \* 50;/unsigned int freq_mhz = 700 + state * 50;/' \
+            target/linux/airoha/patches-6.18/940-pmdomain-airoha-Add-Airoha-CPU-PM-Domain-support.patch
+
+          # Fix mac80211.sh: netifd passes 'country' but offload checks 'country_code'
+          sed -i 's/config\.country_code/config.country/' \
+            package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
+          echo "mac80211.sh: country_code->country fixed"
+          echo "Overclock +200MHz applied"
+
+          # Force EHT beamforming in hostapd.uc for MT7996
+          sed -i '/"eht_oper_chwidth", "eht_oper_centr_freq_seg0_idx",/a\
+          append_raw("eht_su_beamformer=1");\
+          append_raw("eht_su_beamformee=1");\
+          append_raw("eht_mu_beamformer=1");' \
+            package/network/services/hostapd/files/hostapd.uc
+          echo "hostapd.uc: EHT beamforming forced on"
+      - name: Apply YYH2913 XR1710G patches and DTS
+        run: |
+          set -ex
+          YYH_RAW="https://raw.githubusercontent.com/YYH2913/openwrt/xr1710g-6.18-integration/target/linux/airoha/patches-6.18"
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/995-01-net-pcs-airoha-fix-USXGMII-rate-adaptation-on-speed.patch \
+            $YYH_RAW/620-net-pcs-airoha-fix-USXGMII-rate-adaptation-on-speed.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/995-02-net-pcs-airoha-AN7581-add-global-digital-reset-for.patch \
+            $YYH_RAW/621-net-pcs-airoha-AN7581-add-global-digital-reset-for.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/995-03-net-airoha-npu-fix-firmware-loading-issue.patch \
+            $YYH_RAW/921-net-airoha-npu-fix-firmware-loading-issue.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/995-04-net-airoha-classify-external-lan-ports-from-DT.patch \
+            $YYH_RAW/922-net-airoha-classify-external-lan-ports-from-DT.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/dts/an7581-xr1710g-ubi.dts \
+            https://raw.githubusercontent.com/YYH2913/openwrt/xr1710g-6.18-integration/target/linux/airoha/dts/an7581-xr1710g-ubi.dts
+          # airoha.mk: NPU firmware package definitions (missing from offload)
+          curl -sSL --retry 3 --retry-delay 5 -o package/firmware/linux-firmware/airoha.mk \
+            https://raw.githubusercontent.com/YYH2913/openwrt/xr1710g-6.18-integration/package/firmware/linux-firmware/airoha.mk
+          # Remove conflicting offload PCIe patches (YYH2913's 911-912-913 replace them)
+          rm -f target/linux/airoha/patches-6.18/609-02-clk-en7523-add-support-for-dedicated-PCIe-PERSTOUT-r.patch
+          rm -f target/linux/airoha/patches-6.18/609-04-PCI-mediatek-gen3-Add-2-lanes-mode-support-for-Airoh.patch
+          rm -f target/linux/airoha/patches-6.18/913-clk-en7523-reset-PCIE-HB-on-init.patch
+          # PCIe x2 link support and clock fixes (missing from offload)
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/911-clk-en7581-Separate-PERST-from-refclk-in-PCIe-clock.patch \
+            $YYH_RAW/911-clk-en7581-Separate-PERST-from-refclk-in-PCIe-clock.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/912-pcie-mediatek-gen3-Add-x2-link-support-for-Airoha-EN7581.patch \
+            $YYH_RAW/912-pcie-mediatek-gen3-Add-x2-link-support-for-Airoha-EN7581.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/913-pcie-mediatek-gen3-fix-x2-mode-PERST-deassert.patch \
+            $YYH_RAW/913-pcie-mediatek-gen3-fix-x2-mode-PERST-deassert.patch
+          # Extra YYH2913 fix patches (safety net)
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/330-net-airoha-use-device_set_node-helper-to-setup-GDM-node.patch \
+            $YYH_RAW/330-net-airoha-use-device_set_node-helper-to-setup-GDM-node.patch
+          curl -sSL --retry 3 --retry-delay 5 -o target/linux/airoha/patches-6.18/920-hwrng-airoha-fix-init-sequence-default-to-DRBG.patch \
+            $YYH_RAW/920-hwrng-airoha-fix-init-sequence-default-to-DRBG.patch
+          echo "YYH2913 patches applied (995-01~04, 330, 911-913, 920-hwrng)"
+
+      - name: Enable bridge flow table kernel config
+        run: |
+          echo "CONFIG_NF_FLOW_TABLE_BRIDGE=m" >> target/linux/airoha/an7581/config-6.18
+
+      - name: Add XR1710G device definition (YYH2913 authoritative)
+        run: |
+          cat >> target/linux/airoha/image/an7581.mk << 'XR1710GDEV'
+
+          define Device/econet_xr1710g-ubi
+            DEVICE_VENDOR := Econet
+            DEVICE_MODEL := XR1710G
+            DEVICE_VARIANT := UBI
+            DEVICE_DTS := an7581-xr1710g-ubi
+            DEVICE_COMPAT_VERSION := 2.0
+            DEVICE_COMPAT_MESSAGE := The XR1710G BMT/BBT boundary has changed. Install \
+                 an XR1710G chainloader/U-Boot using the new layout first, then boot \
+                 recovery/initramfs and fully recreate UBI. A normal sysupgrade that \
+                 preserves configuration is unsafe.
+            DEVICE_PACKAGES := -airoha-en7581-npu-firmware \
+                  -kmod-input-gpio-keys-polled -kmod-leds-pwm \
+                  -kmod-pwm-airoha \
+                  airoha-en7581-mt7996-npu-firmware \
+                  apk-mbedtls ethtool-full fitblk \
+                  kmod-i2c-an7581 kmod-hwmon-nct7802 \
+                  kmod-mt7996-firmware kmod-phy-realtek rtl826x-firmware \
+                  kmod-nf-flow-bridge kmod-nft-offload kmod-nft-fullcone \
+                  kmod-nf-flowoffload kmod-nf-flowoffload4 kmod-nf-flowoffload6 \
+                  luci \
+                  luci-app-firewall luci-app-mlo \
+                  luci-app-package-manager \
+                  luci-i18n-mlo-zh-cn \
+                  luci-mod-admin-full \
+                  luci-proto-ppp luci-theme-bootstrap \
+                  rpcd-mod-rrdns uhttpd uhttpd-mod-ubus \
+                  wpad-basic-mbedtls
+            UBINIZE_OPTS := -E 5
+            BLOCKSIZE := 128k
+            PAGESIZE := 2048
+            UBOOTENV_IN_UBI := 1
+            KERNEL_IN_UBI := 1
+            KERNEL := kernel-bin | gzip
+            KERNEL_INITRAMFS := kernel-bin | lzma | \
+              fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 128k
+            KERNEL_INITRAMFS_SUFFIX := -recovery.itb
+            IMAGES := sysupgrade.itb
+            IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | append-metadata
+            SOC := an7581
+          endef
+          TARGET_DEVICES += econet_xr1710g-ubi
+          XR1710GDEV
+
+
+      - name: Patch platform.sh for econet,xr1710g-ubi upgrade
+        run: |
+          awk '
+          /^\t\t\*\)/ && !done {
+            print "\t\teconet,xr1710g-ubi)"
+            print "\t\t\tfit_do_upgrade \"$1\""
+            print "\t\t\t;;"
+            done=1
+          }
+          { print }
+          ' target/linux/airoha/an7581/base-files/lib/upgrade/platform.sh > /tmp/platform.sh
+          mv /tmp/platform.sh target/linux/airoha/an7581/base-files/lib/upgrade/platform.sh
+          echo "platform.sh patched for econet,xr1710g-ubi"
+          grep -q 'econet,xr1710g-ubi' \
+            target/linux/airoha/an7581/base-files/lib/upgrade/platform.sh || {
+            echo "FATAL: platform.sh patch did not apply"
+            exit 1
+          }
+          echo "platform.sh verified: econet,xr1710g-ubi case present"
+      - name: Add YYH2913 uci-defaults (flow offload, WiFi tuning, XR1710G WiFi)
+        run: |
+          mkdir -p files/etc/uci-defaults
+
+          # 14-airoha-hw-flow-offload — enable hw flow offload at boot
+          cat > files/etc/uci-defaults/14-airoha-hw-flow-offload << 'EOF'
+          #!/bin/sh
+          . /lib/functions.sh
+          config_load firewall
+          config_get flow_offloading defaults flow_offloading
+          config_get flow_offloading_hw defaults flow_offloading_hw
+          [ -n "$flow_offloading" ] || uci set firewall.@defaults[0].flow_offloading='1'
+          [ -n "$flow_offloading_hw" ] || uci set firewall.@defaults[0].flow_offloading_hw='1'
+          uci commit firewall
+          exit 0
+          EOF
+
+          # 16-airoha-wifi-tuning — U-APSD off, disassoc_low_ack off for W1700K/XR1710G
+          cat > files/etc/uci-defaults/16-airoha-wifi-tuning << 'EOF'
+          #!/bin/sh
+          . /lib/functions.sh
+          . /lib/functions/system.sh
+          case "$(board_name)" in
+            gemtek,w1700k-ubi|econet,xr1710g-ubi) ;;
+            *) exit 0 ;;
+          esac
+          config_load wireless
+          changed=0
+          tune_wifi_iface() {
+            local cfg="$1" mode
+            config_get mode "$cfg" mode
+            [ "$mode" = "ap" ] || return 0
+            if ! uci -q get wireless."$cfg".uapsd >/dev/null; then
+              uci set wireless."$cfg".uapsd='0'; changed=1
+            fi
+            if ! uci -q get wireless."$cfg".disassoc_low_ack >/dev/null; then
+              uci set wireless."$cfg".disassoc_low_ack='0'; changed=1
+            fi
+          }
+          config_foreach tune_wifi_iface wifi-iface
+          [ "$changed" -eq 1 ] && uci commit wireless
+          exit 0
+          EOF
+
+          # 17-xr1710g-wifi-defaults — XR1710G band-specific defaults + MLD setup
+          cat > files/etc/uci-defaults/17-xr1710g-wifi-defaults << 'EOF'
+          #!/bin/sh
+          . /lib/functions.sh
+          . /lib/functions/system.sh
+          [ "$(board_name)" = "econet,xr1710g-ubi" ] || exit 0
+          config_load wireless
+          changed=0
+          set_xr1710g_radio_defaults() {
+            local cfg="$1" band
+            config_get band "$cfg" band
+            case "$band" in
+              2g) uci set wireless."$cfg".country='US' ;;
+              5g)
+                uci set wireless."$cfg".country='US'
+                uci set wireless."$cfg".channel='36'
+                uci set wireless."$cfg".htmode='EHT160'
+                ;;
+              6g)
+                uci set wireless."$cfg".country='US'
+                uci set wireless."$cfg".channel='37'
+                uci set wireless."$cfg".htmode='EHT320'
+                ;;
+              *) return 0 ;;
+            esac
+            changed=1
+          }
+          config_foreach set_xr1710g_radio_defaults wifi-device
+          # Enable default AP ifaces with SSID/PSK
+          for n in 0 1 2; do
+            if uci -q get wireless.default_radio${n} >/dev/null; then
+              uci set wireless.default_radio${n}.disabled='0'
+              uci set wireless.default_radio${n}.ssid='XR1710G'
+              uci set wireless.default_radio${n}.encryption='sae-mixed'
+              uci set wireless.default_radio${n}.key='12345678'
+              changed=1
+            fi
+          done
+          [ "$changed" -eq 1 ] && uci commit wireless
+          # Force admin-full LUCI interface (bootstrap theme)
+          uci -q set luci.main.mediaurlbase='/cgi-bin/luci/admin/contents'
+          uci -q commit luci
+          exit 0
+          EOF
+
+          # SSH port 2242
+          cat > files/etc/uci-defaults/99-ssh-port << 'SSHCONF'
+          #!/bin/sh
+          uci set dropbear.@dropbear[0].Port=2242
+          uci commit dropbear
+          rm -f /etc/uci-defaults/99-ssh-port
+          exit 0
+          SSHCONF
+
+          chmod +x files/etc/uci-defaults/*
+
+      - name: Add YYH2913 hotplug scripts
+        run: |
+          mkdir -p files/etc/hotplug.d/net
+
+          # 50-flow-offload-wifi — trigger flow offload on WiFi/MLD iface up
+          cat > files/etc/hotplug.d/net/50-flow-offload-wifi << 'EOF'
+          #!/bin/sh
+          case "$ACTION" in
+            add|move) ;;
+            *) exit 0 ;;
+          esac
+          DEV="${DEVICENAME:-$INTERFACE}"
+          [ -n "$DEV" ] || exit 0
+          case "$DEV" in
+            phy*-ap*|ap-mld*) ;;
+            *) exit 0 ;;
+          esac
+          [ -f /tmp/.flow-offload-wifi-pending ] && exit 0
+          touch /tmp/.flow-offload-wifi-pending
+          ( sleep 1; rm -f /tmp/.flow-offload-wifi-pending; /etc/init.d/firewall reload 2>/dev/null ) &
+          EOF
+
+          # 50-nf-bridge-call — trigger bridge flowtable reinstall
+          cat > files/etc/hotplug.d/net/50-nf-bridge-call << 'EOF'
+          #!/bin/sh
+          [ "$ACTION" = "ifup" ] || exit 0
+          case "$INTERFACE" in
+            br-*) ;;
+            *) exit 0 ;;
+          esac
+          /etc/init.d/firewall reload 2>/dev/null
+          EOF
+
+          chmod +x files/etc/hotplug.d/net/*
+
+      - name: irqbalance config
+        run: |
+          mkdir -p files/etc/default
+          cat > files/etc/default/irqbalance << 'IRQCONF'
+          IRQBALANCE_BANNED_CPUS=
+          IRQBALANCE_ARGS="--hintpolicy=subset"
+          IRQCONF
+
+
+      - name: Patch board.d scripts for XR1710G
+        run: |
+          # 02_network: add XR1710G network interface config
+          awk '
+          /^\tnokia,valyrian)/ && !done {
+            print "\teconet,xr1710g-ubi)"
+            print "\t\tucidef_set_interfaces_lan_wan \"lan1 lan2 lan3\" \"wan\""
+            print "\t\tucidef_set_country \"US\""
+            print "\t\tucidef_set_wireless \"2g\" \"XR1710G\""
+            print "\t\tucidef_set_wireless \"5g\" \"XR1710G-5G\""
+            print "\t\tucidef_set_wireless \"6g\" \"XR1710G-6G\""
+            print "\t\tucidef_set_root_password_plain \"password\""
+            print "\t\t;;"
+            done=1
+          }
+          { print }
+          ' target/linux/airoha/an7581/base-files/etc/board.d/02_network > /tmp/02_network
+          mv /tmp/02_network target/linux/airoha/an7581/base-files/etc/board.d/02_network
+          grep -q 'econet,xr1710g-ubi)' \
+            target/linux/airoha/an7581/base-files/etc/board.d/02_network || {
+            echo "FATAL: 02_network patch did not apply"
+            exit 1
+          }
+          echo "02_network: XR1710G interfaces added"
+
+          # 05_compat-version: add XR1710G (same 2.0 as w1700k-ubi)
+          sed -i 's/^\tgemtek,w1700k-ubi)/\tgemtek,w1700k-ubi|econet,xr1710g-ubi)/' \
+            target/linux/airoha/an7581/base-files/etc/board.d/05_compat-version
+          grep -q 'gemtek,w1700k-ubi|econet,xr1710g-ubi)' \
+            target/linux/airoha/an7581/base-files/etc/board.d/05_compat-version || {
+            echo "FATAL: 05_compat-version patch did not apply"
+            exit 1
+          }
+          echo "05_compat-version: XR1710G compat version set"
+      - name: Update feeds (no third-party feeds — official only)
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure firmware
+        run: |
+          cat > .config << 'EOF'
+          CONFIG_TARGET_airoha=y
+          CONFIG_TARGET_airoha_an7581=y
+          CONFIG_TARGET_airoha_an7581_DEVICE_econet_xr1710g-ubi=y
+          CONFIG_DEVEL=y
+          CONFIG_CCACHE=y
+          CONFIG_KERNEL_DEVMEM=y
+          CONFIG_BUSYBOX_CUSTOM=y
+          CONFIG_BUSYBOX_CONFIG_DEVMEM=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-app-sqm=y
+          CONFIG_PACKAGE_sqm-scripts=y
+          CONFIG_PACKAGE_sqm-scripts-extra=y
+          CONFIG_PACKAGE_irqbalance=y
+          CONFIG_PACKAGE_luci-app-irqbalance=y
+          CONFIG_PACKAGE_luci-app-airoha-npu=y
+          CONFIG_PACKAGE_luci-app-airoha-flowsense=y
+          CONFIG_PACKAGE_luci-app-w1700k-fancontrol=y
+          CONFIG_PACKAGE_luci-app-netspeedtest=y
+          CONFIG_PACKAGE_luci-app-wifi7=y
+          CONFIG_PACKAGE_luci-app-ttyd=y
+          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+          CONFIG_DROPBEAR_2242=n
+          EOF
+          make defconfig
+
+      - name: Validate target selection
+        run: |
+          grep -q 'CONFIG_TARGET_airoha_an7581_DEVICE_econet_xr1710g-ubi=y' .config || {
+            echo "=== .config TARGET lines ==="
+            grep "^CONFIG_TARGET_" .config || true
+            echo "FATAL: Target econet_xr1710g-ubi not selected!"
+            exit 1
+          }
+          echo "Target econet_xr1710g-ubi confirmed"
+
+
+      - name: Show build config
+        run: grep -E "^CONFIG_" .config | sort
+
+      - name: Build firmware
+        run: |
+          set -o pipefail
+          make -j$(nproc) V=s 2>&1 | tee build.log
+
+      - name: Prepare artifacts
+        if: always()
+        run: |
+          mkdir -p release
+          cp bin/targets/airoha/an7581/*sysupgrade.itb release/ 2>/dev/null || true
+          cp bin/targets/airoha/an7581/*recovery.itb release/ 2>/dev/null || true
+          cp bin/targets/airoha/an7581/config.buildinfo release/ 2>/dev/null || true
+          cp build.log release/ 2>/dev/null || true
+          sha256sum release/*.itb > release/sha256sums.txt 2>/dev/null || echo "No .itb found" > release/sha256sums.txt
+          ls release/*sysupgrade.itb 1>/dev/null 2>&1 || { echo "FATAL: no .itb produced"; exit 1; }
+          ls release/*recovery.itb 1>/dev/null 2>&1 || echo "WARN: no recovery.itb produced"
+
+      - name: Upload firmware
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: XR1710G-ImmortalWrt-offload
+          path: release/
+          retention-days: 30
+
+      - name: Create Release
+        if: success() && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: xr1710g-${{ github.run_number }}
+          name: "XR1710G Build ${{ github.run_number }}"
+          files: release/*
+          prerelease: false
