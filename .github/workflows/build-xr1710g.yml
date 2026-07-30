@@ -2,7 +2,15 @@ name: Build XR1710G Firmware
 
 on:
   workflow_dispatch:
-
+      target:
+        description: 'Select which distro to build'
+        required: true
+        type: choice
+        options:
+          - openwrt
+          - immortalwrt
+        default: immortalwrt
+        
 permissions:
   contents: write
 
