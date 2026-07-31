@@ -52,11 +52,13 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
         TZ: Asia/Shanghai
       run: |
-        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php \
-          /usr/local/lib/android /opt/ghc
+        # ⚠️ 谨记：Ubuntu 24.04 官方源在 sources.list.d/ 目录下，绝对不能删 sources.list.d/
+        # 只清理不必要的巨大软体包腾空间即可
+        sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+        
         sudo -E apt-get -qq update
-        # 使用 xargs 安全过滤并安装依赖
-        cat $GITHUB_WORKSPACE/depends/ubuntu-24.04 | xargs sudo -E apt-get -y --no-install-recommends install
+        # 过滤空行并安装依赖
+        cat $GITHUB_WORKSPACE/depends/ubuntu-24.04 | grep -v '^#' | xargs sudo -E apt-get -y --no-install-recommends install
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
