@@ -30,11 +30,11 @@ intltool
 libc6-dev-i386
 libelf-dev
 libglib2.0-dev
-libgmp3-dev
+libgmp-dev
 libltdl-dev
 libmpc-dev
 libmpfr-dev
-libncurses5-dev
+libncurses-dev
 libncursesw5-dev
 libreadline-dev
 libssl-dev
@@ -50,7 +50,6 @@ p7zip-full
 patch
 pkgconf
 python3
-python3-distutils
 python3-pyelftools
 libpython3-dev
 qemu-utils
@@ -60,8 +59,7 @@ squashfs-tools
 subversion
 swig
 texinfo
-uglifyjs
-upx-ucl
+upx
 unzip
 vim
 wget
