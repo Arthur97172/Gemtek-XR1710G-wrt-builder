@@ -51,34 +51,13 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # 1. 释放磁盘空间（移除了错误的 /etc/apt/sources.list.d/*）
-        echo "正在清理无用大型环境以释放磁盘空间..."
-        sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc
-        
-        # 2. 更新软件源并安装编译依赖
-        echo "正在更新系统软件源..."
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php \
+          /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        
-        # 【优化点】：尝试读取 ubuntu-24.04 依赖文件，如果不存在则自动回退兼容 ubuntu-22.04
-        if [ -f "$GITHUB_WORKSPACE/depends/ubuntu-24.04" ]; then
-          echo "📂 检测到 ubuntu-24.04 依赖配置文件，开始安装..."
-          sudo -E apt-get -qq install -y $(cat $GITHUB_WORKSPACE/depends/ubuntu-24.04)
-        elif [ -f "$GITHUB_WORKSPACE/depends/ubuntu-22.04" ]; then
-          echo "📂 未检测到 24.04 配置，回退使用 ubuntu-22.04 依赖配置文件..."
-          sudo -E apt-get -qq install -y $(cat $GITHUB_WORKSPACE/depends/ubuntu-22.04)
-        else
-          echo "❌ 错误：在 $GITHUB_WORKSPACE/depends/ 下未找到依赖配置文件！" && exit 1
-        fi
-        
-        # 3. 清理 APT 缓存，进一步榨干磁盘空间
-        sudo apt-get -qq autoremove --purge
-        sudo apt-get -qq clean
-        
-        # 4. 设置时区与工作目录
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/ubuntu-24.04)
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-        echo "✅ 编译环境初始化完成！"
 
     - name: 克隆源码 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
