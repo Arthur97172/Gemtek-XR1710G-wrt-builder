@@ -20,12 +20,17 @@ on:
           - openwrt
           - immortalwrt
         default: openwrt
+      ipaddr:
+        description: "请设置软路由的管理地址,格式:192.168.x.1"
+        required: true
+        default: "192.168.1.1"
         
 env:
   ARCHITECTURE: xr1710g
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
+  WRT_NAME: ${{ (inputs.target == 'openwrt') && 'OpenWrt' || 'ImmortalWrt' }}
   TZ: Asia/Shanghai
   DIY_P2_DIR: diy-part2.d
   TARGET: ${{ github.event.inputs.target }}
@@ -62,6 +67,16 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+
+    - name: 配置custom IP 信息
+      run: |
+        CONFIG_PATH="./files/etc/uci-defaults/99-custom.sh"
+        echo "当前网络配置路径: $CONFIG_PATH"
+        sed -i "s/__IPADDR__/${{ inputs.ipaddr }}/g" "$CONFIG_PATH"
+        sed -i "s/WRTVERSIONINFO/${{ env.WRT_NAME }}/g" "$CONFIG_PATH"
+        sed -i "s/VERXXXX/25.10/g" "$CONFIG_PATH"
+        echo "✅ 配置修改完成，输出预览："
+        cat "$CONFIG_PATH"
 
     - name: 克隆源码 — ImmortalWrt
       if: ${{ env.TARGET == 'immortalwrt' }}
@@ -104,6 +119,11 @@ jobs:
       run: |
         chmod +x scripts/diy-part1.sh
         cd openwrt && "$GITHUB_WORKSPACE/scripts/diy-part1.sh"
+
+    - name: 加载 99-custom.sh 配置
+      run: |
+        cp files/etc/uci-defaults/99-custom.sh openwrt/target/linux/airoha/an7581/base-files/etc/uci-defaults/
+        echo "✅ 文件准备完成"
 
     - name: 更新 feeds
       run: cd openwrt && ./scripts/feeds update -a
@@ -241,7 +261,7 @@ jobs:
           "设备: XR1710G (Airoha AN7581)" \
           "发行版: $DISTRO_NAME" \
           "编译时间: $(date +'%Y年%m月%d日')" \
-          "登录IP: 192.168.1.1" \
+          "登录IP: ${{ inputs.ipaddr }}" \
           "用户名: root" \
           "密码: $PASSWORD_INFO" > release.txt
 
@@ -252,7 +272,7 @@ jobs:
       if: steps.tag.outputs.status == 'success' && !cancelled()
       with:
         tag_name: ${{ env.TARGET }}_${{ steps.tag.outputs.release_tag }}
-        name: ${{ env.TARGET == 'istoreos' && 'iStoreOS' || (env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt') }} ${{ steps.tag.outputs.release_tag }}
+        name: ${{ env.TARGET == 'openwrt' && 'OpenWrt' || 'ImmortalWrt' }} ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
