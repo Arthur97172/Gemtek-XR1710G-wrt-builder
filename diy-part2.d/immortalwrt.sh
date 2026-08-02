@@ -44,4 +44,3 @@ rm -rf tmp/openwrt-packages
 # =================================================================
 sed -i '/CONFIG_PACKAGE_luci-i18n-clientstatus-zh-cn/d' .config
 sed -i '/CONFIG_PACKAGE_luci-app-clientstatus/d' .config
-sed -i '/CONFIG_PACKAGE_mihomo-alpha/d' .config
