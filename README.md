@@ -26,7 +26,7 @@
 ## 目录结构
 
 ```
-iStoreOS-for-Gemtek-XR1710G/
+Gemtek-XR1710G-wrt-builder/
 ├── .github/
 │   └── workflows/
 │       ├── build.yml          # CI 构建脚本
@@ -38,13 +38,17 @@ iStoreOS-for-Gemtek-XR1710G/
 ├── configs/                   # 内核配置文件
 │   ├── openwrt.config
 │   └── immortalwrt.config
-├── depends/ubuntu-24.04       # 构建依赖
+├── depends/ubuntu-22.04       # 构建依赖
 ├── diy-part2.d/               # 每个 distro 独立的配置注入脚本
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
 ├── feeds.d/                   # feeds 源配置
 │   ├── openwrt
 │   └── immortalwrt
+├── files/                     # 固件文件系统覆盖
+│   └── etc/
+│       ├── banner
+│       └── uci-defaults/99-custom.sh
 ├── packages/                  # 每个 distro 的第三方插件配置
 │   ├── openwrt.conf
 │   └── immortalwrt.conf
