@@ -17,7 +17,8 @@ fi
 echo "正在物理剔除冲突与崩溃组件..."
 
 # 1. 物理删除 clientstatus 主包 以及 遗留的语言包（包含 package/emortal 路径）
-find . -type d -name "*clientstatus*" -exec rm -rf {} + 2>/dev/null || true
+#find . -type d -name "*clientstatus*" -exec rm -rf {} + 2>/dev/null || true
+find feeds/ -name "Makefile" -path "*clientstatus*" -exec sed -i '/luci-i18n-clientstatus-zh-cn/d' {} + 2>/dev/null || true
 
 # 2. 深度清理 nftables-nojson（通过搜索文件内部文本 + 文件夹全盘查找）
 find . -name "Makefile" -exec grep -l "PACKAGE_nftables-nojson" {} + | xargs rm -rf 2>/dev/null || true
