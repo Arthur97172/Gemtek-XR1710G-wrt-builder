@@ -38,7 +38,7 @@ Gemtek-XR1710G-wrt-builder/
 ├── configs/                   # 内核配置文件
 │   ├── openwrt.config
 │   └── immortalwrt.config
-├── depends/ubuntu-22.04       # 构建依赖
+├── depends/ubuntu-24.04       # 构建依赖
 ├── diy-part2.d/               # 每个 distro 独立的配置注入脚本
 │   ├── openwrt.sh
 │   └── immortalwrt.sh
