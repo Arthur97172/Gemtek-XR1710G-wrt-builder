@@ -92,8 +92,10 @@ jobs:
     - name: 克隆源码 — OpenWrt
       if: ${{ env.TARGET == 'openwrt' }}
       env:
-        REPO_URL: https://github.com/YYH2913/openwrt
-        REPO_BRANCH: xr1710g-6.18-integration    
+        #REPO_URL: https://github.com/YYH2913/openwrt
+        #REPO_BRANCH: xr1710g-6.18-integration
+        REPO_URL: https://github.com/hurryman2212/OpenW1700k-test
+        REPO_BRANCH: offload-oc
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
