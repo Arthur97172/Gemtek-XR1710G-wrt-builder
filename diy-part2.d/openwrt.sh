@@ -10,7 +10,8 @@ find . -name "Makefile" -exec grep -l "PACKAGE_nftables-nojson" {} + | xargs rm 
 find . -type d -name "*nftables-nojson*" -exec rm -rf {} + 2>/dev/null || true
 
 # 彻底清理 clientstatus 主包及其关联语言包
-find . -type d -name "*clientstatus*" -exec rm -rf {} + 2>/dev/null || true
+#find . -type d -name "*clientstatus*" -exec rm -rf {} + 2>/dev/null || true
+find feeds/ -name "Makefile" -path "*clientstatus*" -exec sed -i '/luci-i18n-clientstatus-zh-cn/d' {} + 2>/dev/null || true
 
 # 清理 freeradius3 和 mihomo 冲突包
 rm -rf feeds/packages/net/freeradius3
