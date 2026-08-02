@@ -17,6 +17,10 @@ fi
 echo "正在物理剔除 clientstatus 组件..."
 rm -rf feeds/luci/applications/luci-app-clientstatus
 rm -rf package/feeds/luci/luci-app-clientstatus
+rm -rf feeds/packages/net/freeradius3
+find feeds/ package/ -type d -name "luci-app-clientstatus" -exec rm -rf {} + 2>/dev/null || true
+find feeds/ package/ -type d -name "*nftables-nojson*" -exec rm -rf {} + 2>/dev/null || true
+find feeds/ package/ -type d -name "*mihomo*" -exec rm -rf {} + 2>/dev/null || true
 
 # =================================================================
 # 步骤 3：移除缺失依赖的 sdl3 游戏残余组件，消除满屏报错
