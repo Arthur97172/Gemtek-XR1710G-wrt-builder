@@ -28,11 +28,4 @@ PKG_CONF="$GITHUB_WORKSPACE/packages/openwrt.conf"
 rm -rf tmp/.config*
 rm -rf tmp/info/.files-package*
 
-# ===== 清理 sdl3 游戏与图形库遗留警告 =====
-echo "正在物理清理孤立的 sdl3 依赖包..."
-rm -rf package/feeds/video/sdl2-compat
-rm -rf package/feeds/video/sdl3-*
-rm -rf feeds/video/video/sdl3*
-rm -rf feeds/video/video/sdl2-compat
-
 echo "✅ DIY Part2 修复完毕，已强制重置缓存！"
