@@ -14,6 +14,7 @@ cpio
 curl
 device-tree-compiler
 dos2unix
+ecj
 fastjar
 flex
 g++
@@ -40,6 +41,7 @@ libssl-dev
 libtool
 lrzsz
 lshw
+meson
 mkisofs
 msmtp
 nano
