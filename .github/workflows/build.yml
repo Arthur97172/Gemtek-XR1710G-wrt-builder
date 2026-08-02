@@ -8,10 +8,6 @@ on:
   repository_dispatch:
   workflow_dispatch:
     inputs:
-      ssh:
-        description: 'SSH connection to Actions'
-        required: false
-        default: 'false'
       target:
         description: 'Select which distro to build'
         required: true
@@ -24,7 +20,11 @@ on:
         description: "请设置软路由的管理地址,格式:192.168.x.1"
         required: true
         default: "192.168.1.1"
-        
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+
 env:
   ARCHITECTURE: xr1710g
   UPLOAD_BIN_DIR: false
