@@ -49,8 +49,8 @@ rm -rf tmp/openwrt-packages
 # =================================================================
 # 步骤 5：抹除 .config 冲突条目 & 【关键】强行清空旧索引缓存
 # =================================================================
-sed -i '/CONFIG_PACKAGE_luci-i18n-clientstatus-zh-cn/d' .config
-sed -i '/CONFIG_PACKAGE_luci-app-clientstatus/d' .config
+#sed -i '/CONFIG_PACKAGE_luci-i18n-clientstatus-zh-cn/d' .config
+#sed -i '/CONFIG_PACKAGE_luci-app-clientstatus/d' .config
 
 # 强制 OpenWrt 重新扫描全盘 package，防止读取旧报错缓存（极其关键！）
 rm -rf tmp/.config*
