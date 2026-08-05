@@ -27,6 +27,7 @@ on:
         options:
           - yes
           - no
+        default: 'no'
       ssh:
         description: 'SSH connection to Actions'
         required: false
