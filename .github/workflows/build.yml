@@ -109,7 +109,7 @@ jobs:
 
     - name: 复制补丁文件
       run: |
-        cp patches/airoha/* openwrt/target/linux/airoha/patches-6.18/
+        cp patches/airoha/* openwrt/package/boot/uboot-airoha/patches/
         chmod +x openwrt/package/boot/uboot-airoha/patches/*
         echo "✅ 补丁文件准备完成"
 
