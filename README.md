@@ -2,10 +2,12 @@
 
 编译配置 for **Airoha AN7581**，支持两种发行版固件构建。
 
-<img src="https://img.shields.io/github/downloads/Arthur97172/Gemtek-XR1710G-wrt-builder/total.svg?style=for-the-badge&color=32C955"/>
-<img src="https://img.shields.io/github/stars/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=orange"/>
-<img src="https://img.shields.io/github/forks/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=ff69b4"/>
-<img src="https://img.shields.io/github/license/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=blueviolet"/>
+<p align="center">
+  <img src="https://img.shields.io/github/downloads/Arthur97172/Gemtek-XR1710G-wrt-builder/total.svg?style=for-the-badge&color=32C955"/>
+  <img src="https://img.shields.io/github/stars/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=orange"/>
+  <img src="https://img.shields.io/github/forks/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=ff69b4"/>
+  <img src="https://img.shields.io/github/license/Arthur97172/Gemtek-XR1710G-wrt-builder.svg?style=for-the-badge&color=blueviolet"/>
+</p>
 
 ## 固件发行版
 
