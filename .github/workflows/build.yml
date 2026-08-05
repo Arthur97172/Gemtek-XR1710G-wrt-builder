@@ -103,6 +103,11 @@ jobs:
         mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
 
+    - name: 复制补丁
+      run: |
+        cp patches/airoha/* openwrt/package/boot/uboot-airoha/patches
+        echo "✅ 补丁文件准备完成"
+
     - name: 加载 99-custom.sh 配置
       run: |
         cp files/etc/uci-defaults/99-custom.sh openwrt/target/linux/airoha/an7581/base-files/etc/uci-defaults/
