@@ -60,6 +60,8 @@ Gemtek-XR1710G-wrt-builder/
 ├── packages/                  # 每个 distro 的第三方插件配置
 │   ├── openwrt.conf
 │   └── immortalwrt.conf
+├── paches/                  # 内核补丁文件， 可选择性加载
+│   ├── *.patch
 └── scripts/
     └── diy-part1.sh           # 版本号补丁，all distros 共用
 ```
