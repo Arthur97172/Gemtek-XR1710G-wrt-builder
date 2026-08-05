@@ -22,7 +22,7 @@ on:
         default: "192.168.1.1"
       patches:
         description: 'Select patches if need build'
-        required: true
+        required: false
         type: choice
         options:
           - yes
