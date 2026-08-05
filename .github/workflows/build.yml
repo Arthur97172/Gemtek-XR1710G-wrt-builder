@@ -24,7 +24,14 @@ on:
         description: "请设置软路由的管理地址,格式:192.168.x.1"
         required: true
         default: "192.168.1.1"
-        
+      patches:
+        description: 'Select patches if need build'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+
 env:
   ARCHITECTURE: xr1710g
   UPLOAD_BIN_DIR: false
@@ -108,8 +115,10 @@ jobs:
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 复制补丁文件
+      if: ${{ inputs.patches == 'yes' }}
       run: |
-        cp patches/airoha/* openwrt/package/boot/uboot-airoha/patches/
+        mkdir -p openwrt/package/boot/uboot-airoha/patches/
+        cp -f patches/airoha/* openwrt/package/boot/uboot-airoha/patches/
         chmod +x openwrt/package/boot/uboot-airoha/patches/*
         echo "✅ 补丁文件准备完成"
 
