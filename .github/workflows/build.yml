@@ -100,7 +100,7 @@ jobs:
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
-        mixkey: ubuntu-22.04-${{ env.ARCHITECTURE }}-${{ env.TARGET }}-v4
+        mixkey: ubuntu-24.04-${{ env.ARCHITECTURE }}-${{ env.TARGET }}-v4
         prefix: ${{ github.workspace }}/openwrt
 
     - name: 复制补丁
