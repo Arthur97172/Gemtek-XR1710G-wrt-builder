@@ -22,12 +22,12 @@ on:
         default: "192.168.1.1"
       patches:
         description: 'Select patches if need build'
-        required: false
+        required: true
         type: choice
         options:
-          - yes
-          - no
-        default: yes
+          - true
+          - false
+        default: 'false'
       ssh:
         description: 'SSH connection to Actions'
         required: false
@@ -131,7 +131,7 @@ jobs:
         cd openwrt && "$GITHUB_WORKSPACE/scripts/diy-part1.sh"
 
     - name: 添加补丁文件
-      if: ${{ inputs.patches == 'yes' }}
+      if: ${{ inputs.patches == 'true' }}
       run: |
         mkdir -p openwrt/package/boot/uboot-airoha/patches/
         cp -f patches/* openwrt/package/boot/uboot-airoha/patches/
