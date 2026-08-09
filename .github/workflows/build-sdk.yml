@@ -129,7 +129,15 @@ jobs:
       - name: Collect packages (.apk)
         run: |
           mkdir -p output
-          find sdk/bin -name "*.apk" -exec cp -v {} output/ \;
+          
+          # 只收集这四个插件相关的 apk
+          find sdk/bin -name "*.apk" | while read -r f; do
+            case "$(basename "$f")" in
+              *airoha*|*w1700k*|*mlo*)
+                cp -v "$f" output/
+                ;;
+            esac
+          done
           
           echo ""
           echo "=== 最终生成的文件 ==="
