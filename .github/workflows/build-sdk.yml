@@ -126,17 +126,16 @@ jobs:
           echo ""
           echo "======== 全部编译完成 ========"
 
-      - name: Collect packages (.ipk / .apk)
+      - name: Collect packages (.apk)
         run: |
           mkdir -p output
-          find sdk/bin \( -name "*.ipk" -o -name "*.apk" \) -exec cp -v {} output/ \;
+          find sdk/bin -name "*.apk" -exec cp -v {} output/ \;
           
           echo ""
           echo "=== 最终生成的文件 ==="
           ls -lh output/ || echo "未找到任何包文件"
           
           echo ""
-          echo "ipk 数量: $(find output -name '*.ipk' | wc -l)"
           echo "apk 数量: $(find output -name '*.apk' | wc -l)"
 
       - name: Upload Artifacts
@@ -144,8 +143,9 @@ jobs:
         with:
           name: luci-apps-${{ github.event.inputs.sdk_source }}-an7581
           path: |
-            output/*.ipk
-            output/*.apk
+            output/*airoha*.apk
+            output/*w1700k*.apk
+            output/*mlo*.apk
           if-no-files-found: error
           retention-days: 30
 
