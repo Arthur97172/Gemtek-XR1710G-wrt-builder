@@ -1,4 +1,4 @@
-name: Build Gemtek LuCI Apps (Flexible)
+name: Build Gemtek LuCI Apps
 
 on:
   workflow_dispatch:
@@ -23,12 +23,34 @@ jobs:
 
       - name: Download ImmortalWrt SDK
         run: |
-          wget -q https://downloads.immortalwrt.org/snapshots/targets/airoha/an7581/immortalwrt-sdk-airoha-an7581_gcc-14.4.0_musl.Linux-x86_64.tar.zst
-          tar --zstd -xf immortalwrt-sdk-airoha-an7581_*.tar.zst
-          mv immortalwrt-sdk-airoha-an7581_* sdk
+          set -e
+          SDK_URL="https://downloads.immortalwrt.org/snapshots/targets/airoha/an7581/immortalwrt-sdk-airoha-an7581_gcc-14.4.0_musl.Linux-x86_64.tar.zst"
+          
+          echo "正在下载 SDK..."
+          wget -q --show-progress "$SDK_URL" -O sdk.tar.zst
+          
+          echo "正在解压..."
+          tar --zstd -xf sdk.tar.zst
+          
+          # 自动找到解压出来的目录（不管名字是什么）
+          SDK_DIR=$(find . -maxdepth 1 -type d -name "immortalwrt-sdk-*" | head -n1)
+          
+          if [ -z "$SDK_DIR" ]; then
+            echo "错误：解压后没有找到 immortalwrt-sdk-* 目录"
+            ls -la
+            exit 1
+          fi
+          
+          echo "找到 SDK 目录: $SDK_DIR"
+          mv "$SDK_DIR" sdk
+          
           cd sdk
+          echo "更新 feeds..."
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          
+          echo "SDK 准备完成"
+          ls -la
 
       - name: Add plugins from Gilly1970 repo
         run: |
