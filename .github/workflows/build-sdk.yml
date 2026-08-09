@@ -157,7 +157,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Create Release
+      - name: Create / Update Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -169,7 +169,7 @@ jobs:
             TAG="openwrt_${DATE}"
             RELEASE_NAME="OpenWrt ${DATE}"
           else
-            TAG="ImmortalWrt_${DATE}"
+            TAG="immortalwrt_${DATE}"          # ← 改成全小写，与 build.yml 一致
             RELEASE_NAME="ImmortalWrt ${DATE}"
           fi
 
@@ -177,12 +177,15 @@ jobs:
           echo "Release 名称: $RELEASE_NAME"
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "已存在同名 Release，先删除..."
-            gh release delete "$TAG" --repo "${{ github.repository }}" --yes
+            echo "已存在同名 Release，直接上传文件（不删除）..."
+            gh release upload "$TAG" output/* \
+              --repo "${{ github.repository }}" \
+              --clobber
+          else
+            echo "创建新 Release..."
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$RELEASE_NAME" \
+              --notes "" \
+              output/*
           fi
-
-          gh release create "$TAG" \
-            --repo "${{ github.repository }}" \
-            --title "$RELEASE_NAME" \
-            --notes "" \
-            output/*
