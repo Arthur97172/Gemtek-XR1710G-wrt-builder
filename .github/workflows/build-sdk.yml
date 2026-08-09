@@ -1,4 +1,4 @@
-name: Build LuCI airoha-w1700k
+name: Build LuCI Airoha-AN7581
 
 on:
   workflow_dispatch:
