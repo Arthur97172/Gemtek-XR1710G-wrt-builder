@@ -176,14 +176,5 @@ jobs:
           gh release create "$TAG" \
             --repo "${{ github.repository }}" \
             --title "$RELEASE_NAME" \
-            --notes "自动编译自 YYH2913 四个插件
-
-          - luci-app-airoha-flowsense
-          - luci-app-airoha-npu
-          - luci-app-mlo
-          - luci-app-w1700k-fancontrol
-
-          SDK: ${{ github.event.inputs.sdk_source }}
-          Target: airoha/an7581
-          编译时间: $(date '+%Y-%m-%d %H:%M:%S %Z')" \
+            --notes "" \
             output/*
