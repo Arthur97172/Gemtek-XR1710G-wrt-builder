@@ -1,0 +1,85 @@
+name: Build Gemtek LuCI Apps (Flexible)
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: '要编译的插件包名（空格分隔，例如：luci-app-airoha-flowsense luci-app-w1700k-fancontrol）'
+        required: true
+        default: 'luci-app-airoha-flowsense'
+      extra_clone:
+        description: '额外要克隆的插件仓库（可选，格式：https://github.com/user/repo.git|目标目录名）'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+
+      - name: Download ImmortalWrt SDK
+        run: |
+          wget -q https://downloads.immortalwrt.org/snapshots/targets/airoha/an7581/immortalwrt-sdk-airoha-an7581_gcc-14.4.0_musl.Linux-x86_64.tar.zst
+          tar --zstd -xf immortalwrt-sdk-airoha-an7581_*.tar.zst
+          mv immortalwrt-sdk-airoha-an7581_* sdk
+          cd sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Add plugins from Gilly1970 repo
+        run: |
+          cd sdk
+          git clone --depth=1 https://github.com/Gilly1970/Gemtek-W1700K.git /tmp/gemtek
+          
+          # 把仓库里所有 luci-app 都复制进来（后续只编译你指定的）
+          cp -a /tmp/gemtek/luci-apps/luci-app-* package/ 2>/dev/null || true
+          ls package/luci-app-*
+
+      - name: Add extra plugins (optional)
+        if: ${{ github.event.inputs.extra_clone != '' }}
+        run: |
+          cd sdk
+          # 支持多个，用分号分隔
+          IFS=';' read -ra ITEMS <<< "${{ github.event.inputs.extra_clone }}"
+          for item in "${ITEMS[@]}"; do
+            url=$(echo $item | cut -d'|' -f1)
+            name=$(echo $item | cut -d'|' -f2)
+            echo "Cloning $url → package/$name"
+            git clone --depth=1 "$url" "package/$name"
+          done
+
+      - name: Configure packages
+        run: |
+          cd sdk
+          # 把用户输入的包全部设为模块编译 (m)
+          for pkg in ${{ github.event.inputs.packages }}; do
+            echo "CONFIG_PACKAGE_${pkg}=m" >> .config
+            echo "已启用: $pkg"
+          done
+          make defconfig
+
+      - name: Compile
+        run: |
+          cd sdk
+          # 循环编译每个指定的包
+          for pkg in ${{ github.event.inputs.packages }}; do
+            echo "======== 开始编译 $pkg ========"
+            make package/$pkg/compile V=s -j$(nproc) || make package/$pkg/compile V=s -j1
+          done
+
+      - name: Collect IPK
+        run: |
+          mkdir -p output
+          find sdk/bin -name "*.ipk" -exec cp -v {} output/ \;
+          echo "=== 生成的文件 ==="
+          ls -lh output/
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-packages-an7581
+          path: output/*.ipk
