@@ -310,5 +310,5 @@ jobs:
       run: |
         gh release list --limit 100 --json tagName,publishedAt --jq '.[] | "\(.tagName)"' | \
           grep "^${{ env.TARGET }}_" | \
-          tail -n +15 | \
+          tail -n +30 | \
           xargs -I {} gh release delete {} --yes --cleanup-tag || true
