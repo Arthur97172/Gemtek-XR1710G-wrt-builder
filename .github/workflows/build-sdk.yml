@@ -16,8 +16,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # 需要写权限才能创建 Release
+      contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
@@ -152,7 +155,6 @@ jobs:
         run: |
           set -e
 
-          # 生成日期 2026.08.09 格式
           DATE=$(date +%Y.%m.%d)
 
           if [ "${{ github.event.inputs.sdk_source }}" = "OpenWrt" ]; then
@@ -166,16 +168,15 @@ jobs:
           echo "Release 标签: $TAG"
           echo "Release 名称: $RELEASE_NAME"
 
-          # 如果当天已存在同名 Release，先删除再重新创建（避免冲突）
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "已存在同名 Release，先删除..."
             gh release delete "$TAG" --yes
           fi
 
-          # 创建 Release 并上传所有包
           gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
             --title "$RELEASE_NAME" \
-            --notes "自动编译自 YYH2913 四个插件
+            #--notes "自动编译自 YYH2913 四个插件
 
           - luci-app-airoha-flowsense
           - luci-app-airoha-npu
