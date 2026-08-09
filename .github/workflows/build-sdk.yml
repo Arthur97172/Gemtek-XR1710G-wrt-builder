@@ -166,7 +166,7 @@ jobs:
           DATE=$(date +%Y.%m.%d)
 
           if [ "${{ github.event.inputs.sdk_source }}" = "OpenWrt" ]; then
-            TAG="OpenWrt_${DATE}"
+            TAG="openwrt_${DATE}"
             RELEASE_NAME="OpenWrt ${DATE}"
           else
             TAG="ImmortalWrt_${DATE}"
