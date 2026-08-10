@@ -4,21 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       sdk_source:
-        description: '选择 SDK 来源'
+        description: '选择构建来源与 SDK'
         required: true
         type: choice
         options:
           - ImmortalWrt
           - OpenWrt
         default: 'ImmortalWrt'
-      clone_source:
-        description: '选择克隆插件来源'
-        required: true
-        type: choice
-        options:
-          - YYH2913
-          - naoki66
-        default: 'YYH2913'
 
 jobs:
   build:
@@ -47,7 +39,7 @@ jobs:
             SDK_URL="https://downloads.immortalwrt.org/snapshots/targets/airoha/an7581/immortalwrt-sdk-airoha-an7581_gcc-14.4.0_musl.Linux-x86_64.tar.zst"
             SDK_PREFIX="immortalwrt-sdk-*"
             echo ">>> 使用 ImmortalWrt SDK"
-          end
+          fi
           
           echo "下载地址: $SDK_URL"
           wget -q --show-progress "$SDK_URL" -O sdk.tar.zst
@@ -71,16 +63,15 @@ jobs:
           ./scripts/feeds install -a
           echo "SDK 准备完成"
 
-      - name: Clone and copy plugins based on source
+      - name: Clone and copy plugins based on SDK choice
         run: |
           set -e
           cd sdk
           
-          CLONE_SRC="${{ github.event.inputs.clone_source }}"
-          echo ">>> 当前选择的克隆来源: $CLONE_Str"
+          SDK_SRC="${{ github.event.inputs.sdk_source }}"
           
-          if [ "$CLONE_SRC" = "YYH2913" ]; then
-            echo ">>> 克隆 YYH2913/openwrt (分支 xr1710g-6.18-integration)..."
+          if [ "$SDK_SRC" = "OpenWrt" ]; then
+            echo ">>> [OpenWrt] 克隆 YYH2913/openwrt (分支 xr1710g-6.18-integration)..."
             git clone --depth=1 -b xr1710g-6.18-integration \
               https://github.com/YYH2913/openwrt.git /tmp/yyh
             
@@ -94,6 +85,8 @@ jobs:
               SRC_PATH=""
               if [ -d "/tmp/yyh/package/$pkg" ]; then
                 SRC_PATH="/tmp/yyh/package/$pkg"
+              elif [ -d "/tmp/yyh/apps/$pkg" ]; then
+                SRC_PATH="/tmp/yyh/apps/$pkg"
               elif [ -d "/tmp/yyh/$pkg" ]; then
                 SRC_PATH="/tmp/yyh/$pkg"
               fi
@@ -108,11 +101,11 @@ jobs:
             done
             
           else
-            echo ">>> 克隆 naoki66/ImmortalWrt-for-Gemtek-XR1710G (分支 master)..."
+            echo ">>> [ImmortalWrt] 克隆 naoki66/ImmortalWrt-for-Gemtek-XR1710G (分支 master)..."
             git clone --depth=1 -b master \
               https://github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G.git /tmp/naoki
             
-            echo ">>> 复制 naoki66 的 3 个插件..."
+            echo ">>> 复制 naoki66 的前 3 个插件..."
             for pkg in \
               luci-app-airoha-flowsense \
               luci-app-airoha-npu \
@@ -136,15 +129,21 @@ jobs:
               fi
             done
             
-            echo ">>> 克隆 YYH2913/openwrt 获取 luci-app-mlo..."
+            echo ">>> [ImmortalWrt] 单独克隆 YYH2913/openwrt 获取 luci-app-mlo..."
             git clone --depth=1 -b xr1710g-6.18-integration \
               https://github.com/YYH2913/openwrt.git /tmp/yyh
             
+            SRC_PATH=""
             if [ -d "/tmp/yyh/package/luci-app-mlo" ]; then
-              cp -a "/tmp/yyh/package/luci-app-mlo" package/
-              echo "  ✓ 找到并复制 luci-app-mlo"
+              SRC_PATH="/tmp/yyh/package/luci-app-mlo"
+            elif [ -d "/tmp/yyh/apps/luci-app-mlo" ]; then
+              SRC_PATH="/tmp/yyh/apps/luci-app-mlo"
             elif [ -d "/tmp/yyh/luci-app-mlo" ]; then
-              cp -a "/tmp/yyh/luci-app-mlo" package/
+              SRC_PATH="/tmp/yyh/luci-app-mlo"
+            fi
+            
+            if [ -n "$SRC_PATH" ]; then
+              cp -a "$SRC_PATH" package/
               echo "  ✓ 找到并复制 luci-app-mlo"
             else
               echo "  ✗ 错误：在 YYH2913 仓库中找不到 luci-app-mlo"
@@ -153,7 +152,7 @@ jobs:
           fi
           
           echo ""
-          echo "=== 已添加的插件 ==="
+          echo "=== 已成功添加的插件目录 ==="
           ls -d package/luci-app-*
 
       - name: Configure
@@ -210,13 +209,13 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: luci-apps-${{ github.event.inputs.sdk_source }}-${{ github.event.inputs.clone_source }}-an7581
+          name: luci-apps-${{ github.event.inputs.sdk_source }}-an7581
           path: |
             output/*airoha*.apk
             output/*w1700k*.apk
             output/*mlo*.apk
           if-no-files-found: error
-            retention-days: 30
+          retention-days: 30
 
       - name: Create / Update Release
         env:
@@ -226,10 +225,14 @@ jobs:
 
           DATE=$(date +%Y.%m.%d)
           SDK_SRC="${{ github.event.inputs.sdk_source }}"
-          CLONE_SRC="${{ github.event.inputs.clone_source }}"
 
-          TAG="${SDK_SRC,,}_${CLONE_SRC,,}_${DATE}"
-          RELEASE_NAME="${SDK_SRC} (${CLONE_SRC}) ${DATE}"
+          if [ "$SDK_SRC" = "OpenWrt" ]; then
+            TAG="openwrt_${DATE}"
+            RELEASE_NAME="OpenWrt ${DATE}"
+          else
+            TAG="immortalwrt_${DATE}"
+            RELEASE_NAME="ImmortalWrt ${DATE}"
+          fi
 
           echo "Release 标签: $TAG"
           echo "Release 名称: $RELEASE_NAME"
@@ -245,5 +248,5 @@ jobs:
               --repo "${{ github.repository }}" \
               --title "$RELEASE_NAME" \
               --notes "" \
-              --output/*
+              output/*
           fi
