@@ -2,21 +2,21 @@
 
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=luci-app-airoha-npu
+LUCI_NAME:=luci-app-airoha-npu
 PKG_VERSION:=1.1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=4
 PKG_LICENSE:=Apache-2.0
 PKG_MAINTAINER:=XR1710G Maintainer
-TITLE:=LuCI Airoha XR1710G NPU Status (NPU, CPU, Frame Engine)
+TITLE:=LuCI Airoha XR1710G NPU Status
 
-LUCI_TITLE:=LuCI Airoha XR1710G NPU Status (NPU, CPU, Frame Engine)
+LUCI_TITLE:=LuCI Airoha XR1710G NPU Status
 LUCI_DESCRIPTION:=Displays real-time Airoha XR1710G NPU status including NPU utilization, \
 	CPU frequency and load, frame engine statistics, and supports CPU overclocking.
-LUCI_DEPENDS:=+luci-base @TARGET_airoha
+LUCI_DEPENDS:=+luci-base +kmod-br-netfilter
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
-define Package/$(PKG_NAME)/install
+define Package/$(LUCI_NAME)/install
 	# Install LuCI frontend views
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/airoha_npu
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/airoha_npu/status.js $(1)/www/luci-static/resources/view/airoha_npu/
@@ -32,14 +32,22 @@ define Package/$(PKG_NAME)/install
 	# Install RPC ACL configuration
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-airoha-npu.json $(1)/usr/share/rpcd/acl.d/
+
+	# Preserve runtime-created acceleration settings during sysupgrade.
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./root/lib/upgrade/keep.d/luci-app-airoha-npu $(1)/lib/upgrade/keep.d/
 endef
 
-define Package/$(PKG_NAME)/postinst
+define Package/$(LUCI_NAME)/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
 
 # Reload rpcd to register the new luci.airoha_npu backend
 /etc/init.d/rpcd reload 2>/dev/null
+
+# Bridge acceleration is opt-in through the NPU page. Remove defaults from
+# earlier builds so only firewall hardware flow offload is enabled by default.
+rm -f /etc/sysctl.d/10-bridge-offload.conf /etc/sysctl.d/99-bridge-offload.conf
 
 # Clear LuCI cache so the new menu entries are picked up
 rm -f /tmp/luci-indexcache.*
@@ -48,7 +56,7 @@ rm -rf /tmp/luci-modulecache/
 exit 0
 endef
 
-define Package/$(PKG_NAME)/prerm
+define Package/$(LUCI_NAME)/prerm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
 
@@ -58,4 +66,4 @@ define Package/$(PKG_NAME)/prerm
 exit 0
 endef
 
-$(eval $(call BuildPackage,$(PKG_NAME)))
+# call BuildPackage - OpenWrt buildroot signature

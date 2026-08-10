@@ -4,6 +4,76 @@
 
 . /lib/functions.sh
 
+HARDWARE_BLOCKED_FILE="/tmp/luci-airoha-npu.hardware-blocked"
+
+# Run a hardware probe behind a wall-clock deadline.
+# Prevents rpcd hang when devmem blocks in D-state.
+_run_with_deadline() {
+	local seconds="$1"
+	local tag="$2"
+	local output="/tmp/luci-airoha-npu.${tag}.$$.out"
+	local done="/tmp/luci-airoha-npu.${tag}.$$.done"
+	local child_file="/tmp/luci-airoha-npu.${tag}.$$.child"
+	local worker timer child rc
+	shift 2
+
+	[ -e "$HARDWARE_BLOCKED_FILE" ] && return 125
+	rm -f "$output" "$done" "$child_file"
+
+	(
+		"$@" >"$output" 2>/dev/null &
+		child=$!
+		printf '%s\n' "$child" >"$child_file"
+		wait "$child"
+		printf '%s\n' "$?" >"$done"
+	) >/dev/null 2>&1 &
+	worker=$!
+
+	sleep "$seconds" >/dev/null 2>&1 &
+	timer=$!
+
+	wait -n 2>/dev/null
+	if kill -0 "$worker" 2>/dev/null && kill -0 "$timer" 2>/dev/null; then
+		local elapsed=0
+		while [ "$elapsed" -lt "$seconds" ] && [ ! -e "$done" ]; do
+			sleep 1
+			elapsed=$((elapsed + 1))
+		done
+	fi
+
+	if [ -e "$done" ]; then
+		kill "$timer" 2>/dev/null; wait "$timer" 2>/dev/null
+		wait "$worker" 2>/dev/null
+		read -r rc <"$done" 2>/dev/null
+		if [ "${rc:-1}" -eq 0 ] && [ -s "$output" ]; then
+			cat "$output"
+			rm -f "$output" "$done" "$child_file"
+			return 0
+		fi
+		rm -f "$output" "$done" "$child_file"
+		return 1
+	fi
+
+	[ -s "$child_file" ] && { read -r child <"$child_file" 2>/dev/null; kill -9 "$child" 2>/dev/null; }
+	kill -9 "$worker" 2>/dev/null; wait "$worker" 2>/dev/null
+	kill "$timer" 2>/dev/null; wait "$timer" 2>/dev/null
+	rm -f "$output" "$done" "$child_file"
+	printf '%s\n' "$tag timed out" >"$HARDWARE_BLOCKED_FILE"
+	logger -t luci.airoha_npu "hardware probe '$tag' timed out after ${seconds}s; disabling hardware polling until reboot" 2>/dev/null
+	return 124
+}
+
+# Timeout-protected hardware register read via devmem.
+# Returns register value on success, "0" on timeout/error.
+_devmem_read() {
+	local addr="$1"
+	local to="${2:-2}"
+	[ -e "$HARDWARE_BLOCKED_FILE" ] && { echo "0"; return 1; }
+	local val=$(_run_with_deadline "$to" devmem devmem "$addr")
+	echo "${val:-0}"
+	[ -n "$val" ]
+}
+
 get_status() {
 	# === NPU Status ===
 	# Read the actually-loaded NPU firmware path from DTS (firmware-name property).
@@ -42,26 +112,32 @@ get_status() {
 	local offload_bound=$(cat /sys/kernel/debug/ppe/bind 2>/dev/null | grep -c "^[0-9a-fA-F]")
 	local offload_total=$(cat /sys/kernel/debug/ppe/entries 2>/dev/null | grep -c "^[0-9a-fA-F]")
 
-	local mem_info=$(dmesg | grep "reserved mem.*npu" | head -4)
+	# NPU memory regions don't change after boot — cache to avoid slow dmesg on every poll
+	local mem_cache="/tmp/npu-mem-regions.json"
 	local regions="[]"
-
-	if [ -n "$mem_info" ]; then
-		regions=$(echo "$mem_info" | awk '
-		BEGIN { printf "[" }
-		{
-			if (NR > 1) printf ","
-			match($0, /0x[0-9a-fA-F]+\.\.0x[0-9a-fA-F]+/)
-			range = substr($0, RSTART, RLENGTH)
-			split(range, a, "\\.\\.")
-			match($0, /\([0-9]+ [KMG]i?B\)/)
-			size = substr($0, RSTART+1, RLENGTH-2)
-			match($0, /non-reusable [^ ]+/)
-			name = substr($0, RSTART+13)
-			gsub(/@.*/, "", name)
-			printf "{\"name\":\"%s\",\"start\":\"%s\",\"end\":\"%s\",\"size\":\"%s\"}", name, a[1], a[2], size
-		}
-		END { printf "]" }
-		')
+	if [ -f "$mem_cache" ]; then
+		regions=$(cat "$mem_cache" 2>/dev/null)
+	else
+		local mem_info=$(dmesg 2>/dev/null | grep "reserved mem.*npu" | head -4)
+		if [ -n "$mem_info" ]; then
+			regions=$(echo "$mem_info" | awk '
+			BEGIN { printf "[" }
+			{
+				if (NR > 1) printf ","
+				match($0, /0x[0-9a-fA-F]+\.\.0x[0-9a-fA-F]+/)
+				range = substr($0, RSTART, RLENGTH)
+				split(range, a, "\\.\\.")
+				match($0, /\([0-9]+ [KMG]i?B\)/)
+				size = substr($0, RSTART+1, RLENGTH-2)
+				match($0, /non-reusable [^ ]+/)
+				name = substr($0, RSTART+13)
+				gsub(/@.*/, "", name)
+				printf "{\"name\":\"%s\",\"start\":\"%s\",\"end\":\"%s\",\"size\":\"%s\"}", name, a[1], a[2], size
+			}
+			END { printf "]" }
+			')
+		fi
+		echo "$regions" > "$mem_cache" 2>/dev/null
 	fi
 
 	# === CPU Frequency Status ===
@@ -87,8 +163,8 @@ get_status() {
 	# Read actual PLL frequency from hardware (detects overclock)
 	local pll_freq=0
 	if command -v devmem > /dev/null 2>&1; then
-		local pcw_raw=$(devmem 0x1fa202b4 2>/dev/null)
-		local chg_raw=$(devmem 0x1fa202b8 2>/dev/null)
+		local pcw_raw=$(_devmem_read 0x1fa202b4 2>/dev/null)
+		local chg_raw=$(_devmem_read 0x1fa202b8 2>/dev/null)
 		if [ -n "$pcw_raw" ] && [ -n "$chg_raw" ]; then
 			pcw_raw=$((pcw_raw))
 			chg_raw=$((chg_raw))
@@ -318,12 +394,57 @@ set_overclock() {
 		return
 	fi
 
-	# Validate range (500-1600, crash likely above 1500 at stock voltage)
+	# Validate range (500-1600, crash likely above 1200 at stock voltage)
 	if [ "$target_mhz" -lt 500 ] || [ "$target_mhz" -gt 1600 ]; then
 		echo '{"error":"frequency must be 500-1600 MHz"}'
 		return
 	fi
 
+	# Round to nearest 50 MHz step (PLL granularity)
+	target_mhz=$(( (target_mhz + 25) / 50 * 50 ))
+
+	local cpufreq_path="/sys/devices/system/cpu/cpufreq/policy0"
+
+	# Read current PLL frequency from hardware to detect if we're already overclocked
+	local cur_pll_mhz=0
+	if command -v devmem > /dev/null 2>&1; then
+		local _pcw=$(($(_devmem_read 0x1fa202b4 2>/dev/null)))
+		local _chg=$(($(_devmem_read 0x1fa202b8 2>/dev/null)))
+		local _pcw_int=$(( (_pcw >> 24) & 0x7F ))
+		local _posdiv=$(( (_chg >> 4) & 7 ))
+		if [ "$_posdiv" -eq 0 ]; then
+			cur_pll_mhz=$((_pcw_int * 50))
+		else
+			cur_pll_mhz=$((_pcw_int * 50 / (1 << _posdiv)))
+		fi
+	fi
+
+	# For frequencies within the OPP table (<=1200 MHz), try the kernel
+	# cpufreq interface first. This ensures BL31/SMC handles voltage adjustment
+	# and the PLL switch is atomic (local_irq_save/restore in kernel driver).
+	# However, if the PLL was directly modified (overclocked >1200), the cpufreq
+	# driver's state is out of sync and won't actually reprogram the PLL.
+	# In that case, fall through to direct PLL programming.
+	if [ "$target_mhz" -le 1200 ] && [ "$cur_pll_mhz" -le 1200 ]; then
+		local freq_khz=$((target_mhz * 1000))
+		local avail=$(cat "$cpufreq_path/scaling_available_frequencies" 2>/dev/null)
+		if echo "$avail" | grep -qw "$freq_khz"; then
+			echo performance > "$cpufreq_path/scaling_governor" 2>/dev/null
+			echo "$freq_khz" > "$cpufreq_path/scaling_max_freq" 2>/dev/null
+			if [ $? -eq 0 ]; then
+				printf '{"result":"ok","target_mhz":%d,"actual_mhz":%d,"method":"cpufreq","warning":""}' \
+					"$target_mhz" "$target_mhz"
+				return
+			fi
+		fi
+	fi
+
+	# --- Direct PLL programming ---
+	# Used for frequencies > 1200 MHz, or when restoring from an overclock
+	# (cpufreq driver state is out of sync with hardware PLL).
+	# WARNING: For >1200 MHz, this bypasses BL31, so NO voltage adjustment.
+	# The kernel driver uses local_irq_save/restore for atomicity; we cannot
+	# do this from userspace, so interrupt races are also possible.
 	if ! command -v devmem > /dev/null 2>&1; then
 		echo '{"error":"devmem not available"}'
 		return
@@ -340,24 +461,24 @@ set_overclock() {
 	fi
 
 	# Lock governor to performance to prevent cpufreq from fighting
-	echo performance > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null
+	echo performance > "$cpufreq_path/scaling_governor" 2>/dev/null
 
 	# Read current register values
-	local cur_clkmux=$(($(devmem 0x1fa201e0)))
-	local cur_pcw=$(($(devmem 0x1fa202b4)))
-	local cur_chg=$(($(devmem 0x1fa202b8)))
+	local cur_clkmux=$(($(_devmem_read 0x1fa201e0)))
+	local cur_pcw=$(($(_devmem_read 0x1fa202b4)))
+	local cur_chg=$(($(_devmem_read 0x1fa202b8)))
 
 	# Step 1: Enable PLL2 path in CLK_MUX (set bit 2)
 	devmem 0x1fa201e0 32 $(printf "0x%08X" $((cur_clkmux | 0x4)))
 
 	# Step 2: MCUCFG switch to PLL2 (sel=3 in bits[10:9])
-	local cur_u=$(($(devmem 0x1efbe640)))
+	local cur_u=$(($(_devmem_read 0x1efbe640)))
 	devmem 0x1efbe640 32 $(printf "0x%08X" $(((cur_u & 0xFFFFFFE0) | 0x12)))
-	local cur_s=$(($(devmem 0x1efbe7c0)))
+	local cur_s=$(($(_devmem_read 0x1efbe7c0)))
 	devmem 0x1efbe7c0 32 $(printf "0x%08X" $(((cur_s & 0xFFFFF9FF) | (3 << 9))))
 
 	# Step 3: Unlock PLL registers
-	local cur_p=$(($(devmem 0x1fa20268)))
+	local cur_p=$(($(_devmem_read 0x1fa20268)))
 	devmem 0x1fa20268 32 $(printf "0x%08X" $(((cur_p & 0xFFFFFF00) | 0x12)))
 
 	# Step 4: Write new PCW integer
@@ -372,30 +493,33 @@ set_overclock() {
 		devmem 0x1fa202b8 32 $(printf "0x%08X" $((cleared | (posdiv << 4) | 1)))
 	fi
 
-	# Step 6: Wait for PLL lock
-	sleep 0.02
+	# Step 6: Wait for PLL lock (kernel uses udelay(20) = 20us)
+	# busybox sleep does not support fractional seconds, so use a busy-wait loop.
+	# The natural delay between devmem process invocations is already >1ms,
+	# which is far more than the ~20us the kernel waits, but add this as safety.
+	local _i=0; while [ "$_i" -lt 2000 ]; do _i=$((_i+1)); done
 
 	# Step 7: Enable ARMPLL path in CLK_MUX (set bit 0)
-	local cur_clkmux2=$(($(devmem 0x1fa201e0)))
+	local cur_clkmux2=$(($(_devmem_read 0x1fa201e0)))
 	devmem 0x1fa201e0 32 $(printf "0x%08X" $((cur_clkmux2 | 0x1)))
 
 	# Step 8: MCUCFG switch back to ARMPLL
-	local cur_u2=$(($(devmem 0x1efbe640)))
+	local cur_u2=$(($(_devmem_read 0x1efbe640)))
 	devmem 0x1efbe640 32 $(printf "0x%08X" $(((cur_u2 & 0xFFFFFFE0) | 0x12)))
-	local cur_s2=$(($(devmem 0x1efbe7c0)))
+	local cur_s2=$(($(_devmem_read 0x1efbe7c0)))
 	devmem 0x1efbe7c0 32 $(printf "0x%08X" $(((cur_s2 & 0xFFFFF9FF) | (1 << 9))))
 
 	# Step 9: Clear PLL2 path in CLK_MUX
-	local cur_clkmux3=$(($(devmem 0x1fa201e0)))
+	local cur_clkmux3=$(($(_devmem_read 0x1fa201e0)))
 	devmem 0x1fa201e0 32 $(printf "0x%08X" $((cur_clkmux3 & 0xFFFFFFFB)))
 
 	# Step 10: Re-lock PLL registers
-	local cur_p2=$(($(devmem 0x1fa20268)))
+	local cur_p2=$(($(_devmem_read 0x1fa20268)))
 	devmem 0x1fa20268 32 $(printf "0x%08X" $((cur_p2 & 0xFFFFFF00)))
 
 	# Verify
-	local final_pcw=$(($(devmem 0x1fa202b4)))
-	local final_chg=$(($(devmem 0x1fa202b8)))
+	local final_pcw=$(($(_devmem_read 0x1fa202b4)))
+	local final_chg=$(($(_devmem_read 0x1fa202b8)))
 	local read_pcw=$(( (final_pcw >> 24) & 0x7F ))
 	local read_posdiv=$(( (final_chg >> 4) & 7 ))
 	local read_freq
@@ -405,11 +529,37 @@ set_overclock() {
 		read_freq=$((read_pcw * 50 / (1 << read_posdiv)))
 	fi
 
-	printf '{"result":"ok","target_mhz":%d,"actual_mhz":%d,"pcw":%d,"posdiv":%d}' \
-		"$target_mhz" "$read_freq" "$read_pcw" "$read_posdiv"
+	# Include warning for above-stock frequencies
+	local warning=""
+	if [ "$target_mhz" -gt 1200 ]; then
+		warning="No voltage adjustment (bypasses BL31). System may crash or reboot."
+	fi
+
+	# If target is within OPP table, sync cpufreq driver state so the governor
+	# and scaling_max_freq are aware of the new frequency. This is essential
+	# when restoring from an overclock (e.g., 1400→1200) because the cpufreq
+	# driver's internal state was out of sync with the hardware PLL.
+	if [ "$target_mhz" -le 1200 ]; then
+		local freq_khz=$((target_mhz * 1000))
+		local avail=$(cat "$cpufreq_path/scaling_available_frequencies" 2>/dev/null)
+		if echo "$avail" | grep -qw "$freq_khz"; then
+			echo "$freq_khz" > "$cpufreq_path/scaling_max_freq" 2>/dev/null
+			echo "$freq_khz" > "$cpufreq_path/scaling_min_freq" 2>/dev/null
+			# Force governor to re-evaluate by toggling
+			echo userspace > "$cpufreq_path/scaling_governor" 2>/dev/null
+			echo "$freq_khz" > "$cpufreq_path/scaling_setspeed" 2>/dev/null
+			echo performance > "$cpufreq_path/scaling_governor" 2>/dev/null
+			# Restore min to stock 500 MHz
+			echo 500000 > "$cpufreq_path/scaling_min_freq" 2>/dev/null
+		fi
+	fi
+
+	printf '{"result":"ok","target_mhz":%d,"actual_mhz":%d,"pcw":%d,"posdiv":%d,"method":"direct_pll","warning":"%s"}' \
+		"$target_mhz" "$read_freq" "$read_pcw" "$read_posdiv" "$warning"
 }
 
 get_frame_engine() {
+	[ -e /sys/kernel/debug/ppe/entries ] || { echo '{"error":"frame engine not ready"}'; return; }
 	if ! command -v devmem > /dev/null 2>&1; then
 		echo '{"error":"devmem not available"}'
 		return
@@ -420,8 +570,8 @@ get_frame_engine() {
 	for i in 0 1 2 3 4 5 6 7 8 9; do
 		reg_q=$(printf "0x%x" $((0x1fb50150 + i * 4)))
 		reg_d=$(printf "0x%x" $((0x1fb50120 + i * 4)))
-		local qval=$(($(devmem $reg_q)))
-		local dval=$(($(devmem $reg_d)))
+		local qval=$(($(_devmem_read $reg_q)))
+		local dval=$(($(_devmem_read $reg_d)))
 		local iq=$(( (qval >> 16) & 0xFFFF ))
 		local oq=$(( qval & 0xFFFF ))
 		[ -n "$pse_ports" ] && pse_ports="${pse_ports},"
@@ -429,39 +579,39 @@ get_frame_engine() {
 	done
 
 	# PSE shared buffer
-	local psb=$(($(devmem 0x1fb50104)))
+	local psb=$(($(_devmem_read 0x1fb50104)))
 	local pse_used=$(( (psb >> 16) & 0xFFFF ))
 	local pse_free=$(( psb & 0x7FFF ))
 
 	# GDM counters (TX_OK, TX_DROP, RX_OK, RX_FC_DROP, RX_OVER_DROP)
 	# Read as hex to handle large 32-bit counters
-	local gdm1_tx=$(($(devmem 0x1fb50604)))
-	local gdm1_txd=$(($(devmem 0x1fb50608)))
-	local gdm1_rx=$(($(devmem 0x1fb50648)))
-	local gdm1_rxd=$(($(devmem 0x1fb5064c)))
+	local gdm1_tx=$(($(_devmem_read 0x1fb50604)))
+	local gdm1_txd=$(($(_devmem_read 0x1fb50608)))
+	local gdm1_rx=$(($(_devmem_read 0x1fb50648)))
+	local gdm1_rxd=$(($(_devmem_read 0x1fb5064c)))
 
-	local gdm2_tx=$(($(devmem 0x1fb51604)))
-	local gdm2_txd=$(($(devmem 0x1fb51608)))
-	local gdm2_rx=$(($(devmem 0x1fb51648)))
-	local gdm2_rxd=$(($(devmem 0x1fb5164c)))
+	local gdm2_tx=$(($(_devmem_read 0x1fb51604)))
+	local gdm2_txd=$(($(_devmem_read 0x1fb51608)))
+	local gdm2_rx=$(($(_devmem_read 0x1fb51648)))
+	local gdm2_rxd=$(($(_devmem_read 0x1fb5164c)))
 
-	local gdm4_tx=$(($(devmem 0x1fb52604)))
-	local gdm4_txd=$(($(devmem 0x1fb52608)))
-	local gdm4_rx=$(($(devmem 0x1fb52648)))
-	local gdm4_rxd=$(($(devmem 0x1fb5264c)))
+	local gdm4_tx=$(($(_devmem_read 0x1fb52604)))
+	local gdm4_txd=$(($(_devmem_read 0x1fb52608)))
+	local gdm4_rx=$(($(_devmem_read 0x1fb52648)))
+	local gdm4_rxd=$(($(_devmem_read 0x1fb5264c)))
 
 	# CDM counters (TX_OK, RXCPU_OK, RXHWF_OK, RXCPU_DROP, RXHWF_DROP)
-	local cdm1_tx=$(($(devmem 0x1fb50580)))
-	local cdm1_rxcpu=$(($(devmem 0x1fb50590)))
-	local cdm1_rxhwf=$(($(devmem 0x1fb50594)))
-	local cdm1_rxcpud=$(($(devmem 0x1fb505a0)))
-	local cdm1_rxhwfd=$(($(devmem 0x1fb505a4)))
+	local cdm1_tx=$(($(_devmem_read 0x1fb50580)))
+	local cdm1_rxcpu=$(($(_devmem_read 0x1fb50590)))
+	local cdm1_rxhwf=$(($(_devmem_read 0x1fb50594)))
+	local cdm1_rxcpud=$(($(_devmem_read 0x1fb505a0)))
+	local cdm1_rxhwfd=$(($(_devmem_read 0x1fb505a4)))
 
-	local cdm2_tx=$(($(devmem 0x1fb51580)))
-	local cdm2_rxcpu=$(($(devmem 0x1fb51590)))
-	local cdm2_rxhwf=$(($(devmem 0x1fb51594)))
-	local cdm2_rxcpud=$(($(devmem 0x1fb515a0)))
-	local cdm2_rxhwfd=$(($(devmem 0x1fb515a4)))
+	local cdm2_tx=$(($(_devmem_read 0x1fb51580)))
+	local cdm2_rxcpu=$(($(_devmem_read 0x1fb51590)))
+	local cdm2_rxhwf=$(($(_devmem_read 0x1fb51594)))
+	local cdm2_rxcpud=$(($(_devmem_read 0x1fb515a0)))
+	local cdm2_rxhwfd=$(($(_devmem_read 0x1fb515a4)))
 
 	printf '{"pse_ports":[%s],"pse_used":%d,"pse_free":%d,' "$pse_ports" "$pse_used" "$pse_free"
 	printf '"gdm1":{"tx":%d,"tx_drop":%d,"rx":%d,"rx_drop":%d},' "$gdm1_tx" "$gdm1_txd" "$gdm1_rx" "$gdm1_rxd"
@@ -554,9 +704,78 @@ set_flow_offload() {
 	printf '{"result":"ok","enabled":%d}' "$enabled"
 }
 
+_apmode_has_vlan_filtering() {
+	local path value
+
+	for path in /sys/class/net/*/bridge/vlan_filtering; do
+		[ -r "$path" ] || continue
+		value=$(cat "$path" 2>/dev/null)
+		[ "$value" = "1" ] && { echo 1; return; }
+	done
+
+	echo 0
+}
+
+get_apmode_offload() {
+	local ipt ip6t arp vlan_filtering filter_vlan_tagged pass_vlan_indev
+
+	ipt=$(cat /proc/sys/net/bridge/bridge-nf-call-iptables 2>/dev/null)
+	ip6t=$(cat /proc/sys/net/bridge/bridge-nf-call-ip6tables 2>/dev/null)
+	arp=$(cat /proc/sys/net/bridge/bridge-nf-call-arptables 2>/dev/null)
+	vlan_filtering=$(_apmode_has_vlan_filtering)
+	filter_vlan_tagged=$(cat /proc/sys/net/bridge/bridge-nf-filter-vlan-tagged 2>/dev/null)
+	pass_vlan_indev=$(cat /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev 2>/dev/null)
+
+	if [ "$ipt" = "1" ] && [ "$ip6t" = "1" ] && [ "$arp" = "1" ] && \
+	   { [ "$vlan_filtering" = "0" ] || { [ "$filter_vlan_tagged" = "1" ] && [ "$pass_vlan_indev" = "1" ]; }; }; then
+		printf '{"enabled":1}'
+	else
+		printf '{"enabled":0}'
+	fi
+}
+
+set_apmode_offload() {
+	local enabled vlan_filtering vlan_options
+
+	enabled=$(echo "$1" | jsonfilter -e "@.enabled" 2>/dev/null)
+	[ -z "$enabled" ] && enabled="0"
+	if [ "$enabled" != "0" ] && [ "$enabled" != "1" ]; then
+		echo '{"error":"enabled must be 0 or 1"}'
+		return
+	fi
+
+	modprobe br_netfilter 2>/dev/null
+	vlan_filtering=$(_apmode_has_vlan_filtering)
+	vlan_options=0
+	[ "$vlan_filtering" = "1" ] && vlan_options=$enabled
+
+	if ! echo "$enabled" > /proc/sys/net/bridge/bridge-nf-call-iptables 2>/dev/null ||
+	   ! echo "$enabled" > /proc/sys/net/bridge/bridge-nf-call-ip6tables 2>/dev/null ||
+	   ! echo "$enabled" > /proc/sys/net/bridge/bridge-nf-call-arptables 2>/dev/null ||
+	   ! echo "$vlan_options" > /proc/sys/net/bridge/bridge-nf-filter-vlan-tagged 2>/dev/null ||
+	   ! echo "$vlan_options" > /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev 2>/dev/null; then
+		echo '{"error":"failed to configure bridge netfilter"}'
+		return
+	fi
+
+	if [ "$enabled" = "1" ]; then
+		{
+			echo 'net.bridge.bridge-nf-call-iptables=1'
+			echo 'net.bridge.bridge-nf-call-ip6tables=1'
+			echo 'net.bridge.bridge-nf-call-arptables=1'
+			echo "net.bridge.bridge-nf-filter-vlan-tagged=$vlan_options"
+			echo "net.bridge.bridge-nf-pass-vlan-input-dev=$vlan_options"
+		} > /etc/sysctl.d/12-apmode-offload.conf
+	else
+		rm -f /etc/sysctl.d/12-apmode-offload.conf 2>/dev/null
+	fi
+
+	printf '{"result":"ok","enabled":%d,"vlan_filtering":%d}' "$enabled" "$vlan_filtering"
+}
+
 case "$1" in
 	list)
-		echo '{"getStatus":{},"getPpeEntries":{},"getTokenInfo":{},"getFrameEngine":{},"getVlanOffload":{},"setVlanOffload":{"enabled":"int"},"getPppoeOffload":{},"setPppoeOffload":{"enabled":"int"},"getFlowOffload":{},"setFlowOffload":{"enabled":"int"},"setGovernor":{"governor":"str"},"setMaxFreq":{"freq":"int"},"setOverclock":{"freq_mhz":"int"}}'
+		echo '{"getStatus":{},"getPpeEntries":{},"getTokenInfo":{},"getFrameEngine":{},"getVlanOffload":{},"setVlanOffload":{"enabled":"int"},"getPppoeOffload":{},"setPppoeOffload":{"enabled":"int"},"getFlowOffload":{},"setFlowOffload":{"enabled":"int"},"getApModeOffload":{},"setApModeOffload":{"enabled":"int"},"setGovernor":{"governor":"str"},"setMaxFreq":{"freq":"int"},"setOverclock":{"freq_mhz":"int"}}'
 		;;
 	call)
 		case "$2" in
@@ -604,6 +823,13 @@ case "$1" in
 			setFlowOffload)
 				read input
 				set_flow_offload "$input"
+				;;
+			getApModeOffload)
+				get_apmode_offload
+				;;
+			setApModeOffload)
+				read input
+				set_apmode_offload "$input"
 				;;
 			*)
 				echo '{"error":"Invalid method"}'

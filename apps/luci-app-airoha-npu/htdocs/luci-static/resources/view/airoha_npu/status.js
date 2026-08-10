@@ -17,6 +17,8 @@ var callGetPppoeOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'getP
 var callSetPppoeOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'setPppoeOffload', params: ['enabled'] });
 var callGetFlowOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'getFlowOffload' });
 var callSetFlowOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'setFlowOffload', params: ['enabled'] });
+var callGetApModeOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'getApModeOffload' });
+var callSetApModeOffload = rpc.declare({ object: 'luci.airoha_npu', method: 'setApModeOffload', params: ['enabled'] });
 
 /* ── Theme-adaptive CSS ── */
 var themeCSS = '\
@@ -31,11 +33,65 @@ var themeCSS = '\
 .soc-band-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}\
 .soc-gdm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}\
 .soc-cdm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}\
+.npu-dashboard{--npu-cyan:#00c8ff;--npu-green:#00cc44;--npu-amber:#f5a623;--npu-red:#d0021b}\
+.npu-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;margin:0 0 12px}\
+.npu-summary-card{background:var(--soc-card-bg);border:1px solid var(--soc-border);border-left:3px solid var(--npu-summary-accent,var(--soc-border));border-radius:8px;padding:10px 14px;min-height:82px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;transition:border-color .3s}\
+.npu-summary-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--soc-muted);font-family:monospace;margin-bottom:5px}\
+.npu-summary-value{font-size:20px;line-height:1.15;font-family:monospace;font-weight:700}\
+.npu-summary-sub{font-size:11px;line-height:1.3;color:var(--soc-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\
+.npu-section{background:var(--soc-card-bg);border:1px solid var(--soc-border);border-radius:8px;padding:14px;margin:12px 0!important}\
+.npu-section>h3{font-size:15px;margin:0 0 12px;padding:0 0 8px;border-bottom:1px solid var(--soc-border);color:var(--soc-text)}\
+.npu-section h4{margin-top:14px!important;padding-top:12px;border-top:1px solid var(--soc-border)}\
+.npu-details-table{margin:0}\
+.cpu-panel-grid{display:grid;grid-template-columns:minmax(250px,.85fr) minmax(360px,1.15fr);gap:8px}\
+.cpu-control-grid{display:grid;grid-template-columns:minmax(300px,1.25fr) minmax(250px,.75fr);gap:8px;margin-top:8px}\
+.cpu-panel-card{background:var(--soc-card-bg);border:1px solid var(--soc-border);border-left:3px solid var(--cpu-panel-accent,var(--soc-border));border-radius:8px;padding:11px 14px;min-height:96px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}\
+.cpu-panel-card.cpu-info{--cpu-panel-accent:#00c8ff}\
+.cpu-panel-card.cpu-frequency{--cpu-panel-accent:#00cc44}\
+.cpu-panel-card.cpu-controls{--cpu-panel-accent:#00c8ff}\
+.cpu-panel-card.cpu-overclock{--cpu-panel-accent:#f5a623}\
+.cpu-panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--soc-muted);font-family:monospace;margin-bottom:9px}\
+.cpu-panel-body{color:var(--soc-text);font-size:13px}\
+.cpu-info-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;line-height:1.5}\
+.cpu-freq-scale{display:flex;align-items:center;gap:10px;width:100%}\
+.cpu-freq-edge{font-size:11px;min-width:54px;text-align:center}\
+.cpu-freq-track{flex:1;height:28px!important;min-width:180px;max-width:none!important;position:relative;border-radius:6px!important}\
+.cpu-freq-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;font-size:14px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.65)}\
+.cpu-setting-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}\
+.cpu-setting{display:flex;align-items:center;gap:8px;min-width:190px;flex:1}\
+.cpu-setting-label{font-size:11px;color:var(--soc-muted);font-family:monospace;white-space:nowrap}\
+.cpu-setting .cbi-input-select{flex:1;min-width:0!important}\
+.cpu-overclock-controls{display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:8px;align-items:center;width:100%}\
+.cpu-oc-input{width:100%!important;min-width:0}\
+.npu-frame-wrap{margin-top:8px;border:1px solid var(--soc-border);border-radius:8px;padding:10px;background:var(--soc-card-bg)}\
+.fe-cdm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}\
+.fe-wifi-band-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}\
+.fe-cdm-grid>*,.fe-wifi-band-grid>*{min-width:0}\
+.npu-flow-table{margin:0;display:block;overflow-x:auto;white-space:nowrap}\
+.npu-flow-table tr.npu-bnd-row td,.npu-flow-table tr.npu-bnd-row .label-success{color:var(--npu-bnd-text)!important;font-weight:600}\
 .offload-row{display:flex;align-items:center;justify-content:space-evenly;flex-wrap:wrap;gap:12px;padding:10px 0}\
-.offload-item{display:flex;align-items:center;gap:8px;font-size:13px}\
-.offload-badge{font-size:13px;font-weight:700;letter-spacing:1px;padding:2px 10px;border-radius:3px;font-family:monospace;display:inline-flex;align-items:center}\
-.offload-on{background:rgba(0,255,0,0.12);color:#00ff00;border:1px solid rgba(0,255,0,0.35)}\
-.offload-off{background:rgba(255,160,0,0.15);color:#ffa000;border:1px solid rgba(255,160,0,0.35)}\
+.offload-row{display:grid;grid-template-columns:repeat(4,minmax(175px,1fr));gap:8px;padding:0;margin:12px 0}\
+.offload-item{background:var(--soc-card-bg);border:1px solid var(--soc-border);border-left:3px solid var(--soc-border);border-radius:12px;padding:11px 14px;min-width:0;min-height:58px;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}\
+.offload-item:has(.offload-on){border-left-color:var(--npu-green)}\
+.offload-item:has(.offload-off){border-left-color:#6b7280}\
+.offload-name{display:flex;align-items:center;gap:10px;min-width:0;font-size:14px}\
+.offload-name .soc-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
+.offload-dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:0 0 auto;transition:background .25s,box-shadow .25s}\
+.offload-item:has(.offload-on) .offload-dot{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}\
+.offload-controls{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:128px}\
+.npu-toggle{position:relative;display:inline-flex;width:52px;height:30px;flex:0 0 auto;cursor:pointer}\
+.npu-toggle-input{position:absolute;width:1px;height:1px;opacity:0;margin:0}\
+.npu-toggle-track{position:absolute;inset:0;border:1px solid #cbd5e1;border-radius:999px;background:#d7dce2;transition:background .25s,border-color .25s,box-shadow .25s}\
+.npu-toggle-track:before{content:"";position:absolute;width:24px;height:24px;left:2px;top:2px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.24);transition:transform .25s}\
+.npu-toggle-input:checked+.npu-toggle-track{background:#22c55e;border-color:#16a34a}\
+.npu-toggle-input:checked+.npu-toggle-track:before{transform:translateX(22px)}\
+.npu-toggle-input:focus-visible+.npu-toggle-track{box-shadow:0 0 0 3px rgba(0,200,255,.25)}\
+.npu-toggle-input:disabled+.npu-toggle-track{opacity:.55;cursor:wait}\
+.offload-badge{font-size:13px;font-weight:700;letter-spacing:0;padding:0;border:0;background:transparent;font-family:inherit;display:inline-flex;align-items:center;white-space:nowrap}\
+.offload-on{color:#16a34a}\
+.offload-off{color:#6b7280}\
+@media(max-width:1050px){.npu-summary-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.offload-row{grid-template-columns:repeat(2,minmax(180px,1fr))}.cpu-panel-grid,.cpu-control-grid{grid-template-columns:1fr}}\
+@media(max-width:640px){.npu-summary-grid,.offload-row,.fe-cdm-grid,.fe-wifi-band-grid{grid-template-columns:1fr}.npu-section{padding:11px}.cpu-panel-card{padding:10px 12px}.cpu-freq-scale{gap:6px}.cpu-freq-edge{min-width:44px;font-size:10px}.offload-item{min-height:62px;padding:12px 14px}.offload-controls{min-width:132px}}\
 ';
 
 function isDarkMode() {
@@ -68,8 +124,8 @@ function injectCSS() {
 	_lastDarkMode = dark;
 
 	var vars = dark
-		? ':root{--soc-card-bg:#1e1e1e;--soc-border:#333;--soc-muted:#999;--soc-text:#e0e0e0;--soc-bar-track:#333}'
-		: ':root{--soc-card-bg:#fff;--soc-border:#d0d0d0;--soc-muted:#666;--soc-text:#222;--soc-bar-track:#e0e0e0}';
+		? ':root{--soc-card-bg:#1e1e1e;--soc-border:#333;--soc-muted:#999;--soc-text:#e0e0e0;--soc-bar-track:#333;--npu-bnd-text:#86efac}'
+		: ':root{--soc-card-bg:#fff;--soc-border:#d0d0d0;--soc-muted:#666;--soc-text:#222;--soc-bar-track:#e0e0e0;--npu-bnd-text:#15803d}';
 	el.textContent = themeCSS + vars;
 }
 
@@ -138,6 +194,49 @@ function bandHealth(s) {
 function retryPct(s) {
 	if (!s || !s.tx_packets) return '-';
 	return (s.tx_retries/(s.tx_packets+s.tx_retries)*100).toFixed(1)+'%';
+}
+
+function isEnabled(value) {
+	return value === true || value === 1 || value === '1';
+}
+
+function npuSummaryData(st) {
+	st = st || {};
+	var active = isEnabled(st.npu_loaded);
+	var clock = st.npu_clock ? Math.round(st.npu_clock / 1000000) : 0;
+	var bound = st.offload_bound || 0;
+	var total = st.offload_total || 0;
+	var mem = Array.isArray(st.memory_regions) ? st.memory_regions : [];
+
+	return [
+		{ id: 'npu-summary-status', title: _('NPU Status'), value: active ? _('Activated') : _('Not Activated'), sub: active ? (st.npu_device || 'NPU device ready') : 'Driver unavailable', color: active ? '#00c8ff' : '#6b7280' },
+		{ id: 'npu-summary-clock', title: _('NPU Clock / Cores'), value: clock ? clock + ' MHz' : 'N/A', sub: (st.npu_cores || 0) + ' cores', color: '#00cc44' },
+		{ id: 'npu-summary-flows', title: _('Offload Statistics'), value: bound + ' / ' + total, sub: 'Bound / total PPE flows', color: total > 0 ? '#00c8ff' : '#6b7280' },
+		{ id: 'npu-summary-memory', title: _('Reserved Memory'), value: calcTotalMem(mem), sub: mem.length + ' memory regions', color: '#7c3aed' }
+	];
+}
+
+function renderNpuSummary(st) {
+	var cards = npuSummaryData(st).map(function(card) {
+		return E('div', { 'id': card.id, 'class': 'npu-summary-card', 'style': '--npu-summary-accent:' + card.color }, [
+			E('div', { 'class': 'npu-summary-title' }, card.title),
+			E('div', { 'class': 'npu-summary-value', 'style': 'color:' + card.color }, card.value),
+			E('div', { 'class': 'npu-summary-sub' }, card.sub)
+		]);
+	});
+	return E('div', { 'class': 'npu-summary-grid', 'id': 'npu-summary-grid' }, cards);
+}
+
+function updateNpuSummary(st) {
+	npuSummaryData(st).forEach(function(card) {
+		var el = document.getElementById(card.id);
+		if (!el) return;
+		el.style.setProperty('--npu-summary-accent', card.color);
+		var value = el.querySelector('.npu-summary-value');
+		var sub = el.querySelector('.npu-summary-sub');
+		if (value) { value.textContent = card.value; value.style.color = card.color; }
+		if (sub) sub.textContent = card.sub;
+	});
 }
 
 /* ── Mini Band Chip (compact for FE diagram) ── */
@@ -242,7 +341,7 @@ function renderFeDiagram(fe, ti, st) {
 			p7.drops > 0 ? E('span', { 'style': 'color:#f44336' }, 'Drop '+fmtK(p7.drops)) : null
 		].filter(Boolean)),
 		// WiFi bands inside
-		E('div', { 'style': 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px' }, bandChips)
+		E('div', { 'class': 'fe-wifi-band-grid' }, bandChips)
 	]);
 
 	// NPU indicator
@@ -314,7 +413,7 @@ function renderFeDiagram(fe, ti, st) {
 			gdmCard('gdm4', 'GDM4', 'LAN2 (USXGMII 10G)', '#4caf50', 'P9')
 		]),
 		// Row 2: CDM1/CDM2 (CPU) + CDM4/WiFi
-		E('div', { 'style': 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px' }, [
+		E('div', { 'class': 'fe-cdm-grid' }, [
 			cdmCard('cdm1', 'CDM1', 'CPU DMA 1', 'P0'),
 			cdmCard('cdm2', 'CDM2', 'CPU DMA 2', 'P5'),
 			cdm4WiFi
@@ -344,13 +443,13 @@ function renderFreqBar(hw, min, max, pll, gov) {
 	var bg = s.oc ? 'linear-gradient(90deg,#e65100,#ff9800)' : 'linear-gradient(90deg,#2e7d32,#66bb6a)';
 	var label = s.oc ? (pll+' MHz (OC)') : fmtFreq(s.freq);
 
-	return E('div', { 'id':'cpu-freq-bar-wrap', 'style':'display:flex;align-items:center;gap:10px' }, [
-		E('span', { 'class':'soc-muted', 'style':'font-size:90%' }, fmtFreq(min)),
-		E('div', { 'style':'flex:1;border-radius:4px;height:22px;position:relative;min-width:180px;max-width:350px;overflow:hidden', 'class':'soc-bar-track' }, [
+	return E('div', { 'id':'cpu-freq-bar-wrap', 'class':'cpu-freq-scale' }, [
+		E('span', { 'class':'soc-muted cpu-freq-edge' }, fmtFreq(min)),
+		E('div', { 'class':'soc-bar-track cpu-freq-track' }, [
 			E('div', { 'id':'cpu-freq-fill', 'style':'background:'+bg+';height:100%;border-radius:4px;width:'+pct+'%;transition:width .5s' }),
-			E('span', { 'id':'cpu-freq-text', 'style':'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)' }, label)
+			E('span', { 'id':'cpu-freq-text', 'class':'cpu-freq-label' }, label)
 		]),
-		E('span', { 'id':'cpu-freq-max-label', 'class':'soc-muted', 'style':'font-size:90%' }, fmtFreq(s.max))
+		E('span', { 'id':'cpu-freq-max-label', 'class':'soc-muted cpu-freq-edge' }, fmtFreq(s.max))
 	]);
 }
 
@@ -362,13 +461,25 @@ function updateFreqBar(hw, min, max, pll, gov) {
 	if (ml) ml.textContent = fmtFreq(s.max);
 }
 
+function governorLabel(governor) {
+	var labels = {
+		conservative: '\u4fdd\u5b88\u6a21\u5f0f',
+		ondemand: '\u6309\u9700\u6a21\u5f0f',
+		performance: '\u6027\u80fd\u6a21\u5f0f',
+		powersave: '\u7701\u7535\u6a21\u5f0f',
+		schedutil: '\u8c03\u5ea6\u6a21\u5f0f',
+		userspace: '\u7528\u6237\u7a7a\u95f4'
+	};
+	return labels[governor] || _(governor);
+}
+
 function renderGovSelect(avail, active) {
 	var gs = (avail||'').trim().split(/\s+/).filter(Boolean);
 	if (!gs.length) return E('span',{},'N/A');
 	return E('select', { 'id':'cpu-governor-select','class':'cbi-input-select','style':'min-width:140px','change':function(ev){
 		var g=ev.target.value; ev.target.disabled=true;
 		callSetGovernor(g).then(function(r){ev.target.disabled=false;if(r&&r.error) ui.addNotification(null,E('p',{},_('Error: ')+r.error),'error');}).catch(function(){ev.target.disabled=false;});
-	}}, gs.map(function(g){return E('option',{'value':g,'selected':g===active?'':null},_(g));}));
+	}}, gs.map(function(g){return E('option',{'value':g,'selected':g===active?'':null},governorLabel(g));}));
 }
 
 function renderMaxFreqSelect(avail, cur) {
@@ -381,48 +492,95 @@ function renderMaxFreqSelect(avail, cur) {
 }
 
 function renderOcControls() {
-	var inp = E('input',{'id':'oc-freq-input','type':'number','min':'500','max':'1600','step':'50','value':'1400','class':'cbi-input-text','style':'width:100px'});
-	var btn = E('button',{'class':'cbi-button cbi-button-action','style':'margin-left:8px','click':function(){
+	var frequencies = [1200, 1250, 1300, 1350, 1400, 1450, 1500];
+	var inp = E('select', {'id':'oc-freq-input','class':'cbi-input-select cpu-oc-input'}, frequencies.map(function(freq) {
+		return E('option', {'value':freq, 'selected':freq === 1200 ? '' : null}, freq + ' MHz');
+	}));
+	var btn = E('button',{'class':'cbi-button cbi-button-action','click':function(){
 		var f=parseInt(document.getElementById('oc-freq-input').value);
-		if(isNaN(f)||f<500||f>1600){ui.addNotification(null,E('p',{},_('Must be 500-1600 MHz')),'error');return;}
-		if(f>1400&&!confirm('Frequencies above 1400 MHz may be unstable. Continue?')) return;
+		if(frequencies.indexOf(f) === -1){ui.addNotification(null,E('p',{},'请选择 1200-1500 MHz 的预设频率'),'error');return;}
+		if(f>1200&&!confirm(_('Frequencies above 1200 MHz bypass BL31 voltage control and may cause system crash or reboot. Continue?'))) return;
 		btn.disabled=true;btn.textContent=_('Applying...');
 		callSetOverclock(f).then(function(r){btn.disabled=false;btn.textContent=_('Apply');
 			if(r&&r.error) ui.addNotification(null,E('p',{},_('Failed: ')+r.error),'error');
-			else if(r&&r.result==='ok') ui.addNotification(null,E('p',{},_('CPU set to ')+r.actual_mhz+' MHz'),'info');
+			else if(r&&r.result==='ok') {
+				var msg = _('CPU set to ')+r.actual_mhz+' MHz';
+				if(r.warning) msg += ' — ' + r.warning;
+				ui.addNotification(null,E('p',{},msg), r.warning ? 'warning' : 'info');
+			}
 		}).catch(function(e){btn.disabled=false;btn.textContent=_('Apply');});
 	}},_('Apply'));
-	return E('div',{'style':'display:flex;align-items:center;gap:8px;flex-wrap:wrap'},[
-		inp, E('span',{'class':'soc-muted'},'MHz'), btn,
-		E('span',{'class':'soc-muted','style':'font-size:85%;margin-left:8px'},_('Direct PLL. Stock max 1200 MHz. Stable up to 1500 MHz.'))
+	return E('div',{'class':'cpu-overclock-controls'},[
+		inp, btn
 	]);
 }
 
 function renderOffloadBadge(enabled, id) {
+	enabled = isEnabled(enabled);
 	return E('span', {
 		'id': id,
 		'class': 'offload-badge ' + (enabled ? 'offload-on' : 'offload-off')
-	}, enabled ? _('Enabled') : _('Disabled'));
+	}, enabled ? '\u5df2\u5f00\u542f' : '\u5df2\u7981\u7528');
 }
 
 function renderOffloadSelect(enabled, id, callFn, badgeId) {
-	return E('div', { 'class': 'offload-item' }, [
-		E('select', { 'id': id, 'class':'cbi-input-select', 'style':'min-width:100px', 'change':function(ev){
-			var val = ev.target.value === '1' ? 1 : 0;
+	enabled = isEnabled(enabled);
+	var toggle = E('input', {
+		'id': id,
+		'type': 'checkbox',
+		'class': 'npu-toggle-input',
+		'change': function(ev) {
+			var val = ev.target.checked ? 1 : 0;
 			ev.target.disabled = true;
-			callFn(val).then(function(r){
+			callFn(val).then(function(r) {
 				ev.target.disabled = false;
-				if(r && r.error) ui.addNotification(null, E('p',{},_('Error: ')+r.error), 'error');
-				else {
+				if (r && r.error) {
+					ev.target.checked = !val;
+					ui.addNotification(null, E('p', {}, _('Error: ') + r.error), 'error');
+				} else {
 					var b = document.getElementById(badgeId);
-					if(b) { b.className = 'offload-badge '+(val?'offload-on':'offload-off'); b.textContent = val?_('Enabled'):_('Disabled'); }
+					if (b) {
+						b.className = 'offload-badge ' + (val ? 'offload-on' : 'offload-off');
+						b.textContent = val ? '\u5df2\u5f00\u542f' : '\u5df2\u7981\u7528';
+					}
 				}
-			}).catch(function(){ ev.target.disabled = false; });
-		}}, [
-			E('option', {'value':'1', 'selected': enabled ? '' : null}, _('Enabled')),
-			E('option', {'value':'0', 'selected': enabled ? null : ''}, _('Disabled'))
+			}).catch(function() {
+				ev.target.checked = !val;
+				ev.target.disabled = false;
+			});
+		}
+	});
+	toggle.checked = enabled;
+	return E('div', { 'class': 'offload-controls' }, [
+		E('label', { 'class': 'npu-toggle', 'title': enabled ? '\u70b9\u51fb\u7981\u7528' : '\u70b9\u51fb\u542f\u7528' }, [
+			toggle,
+			E('span', { 'class': 'npu-toggle-track' })
 		]),
 		renderOffloadBadge(enabled, badgeId)
+	]);
+}
+
+/* ── Reusable CPU info builders (used by initial render AND live updates) ── */
+function buildCpuInfoContent(st) {
+	return [
+		E('span',{'style':'font-weight:600'}, (st.soc_compat||'')),
+		E('span',{'style':'color:#999'}, '·'),
+		E('span',{}, (st.cpu_arch||'')),
+		st.cpu_temp && st.cpu_temp!=='N/A' ? E('span',{}, '(' + st.cpu_temp + ')') : null,
+		E('span',{'style':'color:#999'}, (st.cpu_count||0) + ' 核')
+	];
+}
+
+function buildControlSettingsContent(st) {
+	return E('div',{'class':'cpu-setting-controls'},[
+		E('div',{'class':'cpu-setting'},[
+			E('span',{'class':'cpu-setting-label'},_('Governor')),
+			renderGovSelect(st.cpu_avail_governors,st.cpu_governor)
+		]),
+		E('div',{'class':'cpu-setting'},[
+			E('span',{'class':'cpu-setting-label'},_('Max Freq')),
+			renderMaxFreqSelect(st.cpu_avail_freqs,st.cpu_max_freq)
+		])
 	]);
 }
 
@@ -430,7 +588,7 @@ function renderOffloadSelect(enabled, id, callFn, badgeId) {
 function renderPpeRows(entries) {
 	return entries.slice(0,100).map(function(e) {
 		var eth = e.eth||''; if(eth==='00:00:00:00:00:00->00:00:00:00:00:00') eth='-';
-		return E('tr',{'class':'tr'},[
+		return E('tr',{'class':'tr '+(e.state==='BND'?'npu-bnd-row':'')},[
 			E('td',{'class':'td'},e.index), E('td',{'class':'td'},E('span',{'class':e.state==='BND'?'label-success':''},e.state)),
 			E('td',{'class':'td'},e.type), E('td',{'class':'td'},e.orig||'-'), E('td',{'class':'td'},e.new_flow||'-'), E('td',{'class':'td'},eth)
 		]);
@@ -440,96 +598,91 @@ function renderPpeRows(entries) {
 /* ── Main View ── */
 return view.extend({
 	load: function() {
-		return Promise.all([ callNpuStatus(), callPpeEntries(), callTokenInfo(), callFrameEngine(), callGetVlanOffload(), callGetPppoeOffload(), callGetFlowOffload() ]);
+		// Progressive rendering: don't block on RPC calls, let the page render immediately
+		return Promise.resolve([]);
 	},
 
 	render: function(data) {
+		data = data || [];
 		injectCSS();
 		var st = data[0]||{}, ppe = data[1]||{}, ti = data[2]||{}, fe = data[3]||{};
 		var vo = data[4]||{enabled:0}, ppo = data[5]||{enabled:0}, flo = data[6]||{enabled:0};
+		var apo = data[7]||{enabled:0};
 		var entries = Array.isArray(ppe.entries) ? ppe.entries : [];
 		var memR = Array.isArray(st.memory_regions) ? st.memory_regions : [];
 
-		var view = E('div',{'class':'cbi-map'},[
+		var view = E('div',{'class':'cbi-map npu-dashboard'},[
 			E('h2',{},_('Airoha SoC Status')),
 
 			// CPU Frequency
-			E('div',{'class':'cbi-section'},[
+			E('div',{'class':'cbi-section npu-section'},[
 				E('h3',{},_('CPU Frequency')),
-				E('table',{'class':'table'},[
-					E('tr',{'class':'tr'},[ E('td',{'class':'td','width':'25%'},E('strong',{},_('CPU Info'))), E('td',{'class':'td'}, E('div',{'style':'display:flex;align-items:center;gap:8px;flex-wrap:wrap'},[
-						E('span',{'style':'font-weight:600'}, (st.soc_compat||'')),
-						E('span',{'style':'color:#999'}, '·'),
-						E('span',{}, (st.cpu_arch||'') + ' x ' + (st.cpu_count||0)),
-						st.cpu_temp && st.cpu_temp!=='N/A' ? E('span',{}, '(' + st.cpu_temp + ')') : null,
-						E('span',{'style':'color:#999'}, _('Core Count') + ': ' + (st.cpu_count||0))
-					])) ]),
-					E('tr',{'class':'tr'},[ E('td',{'class':'td','width':'25%'},E('strong',{},_('Current Frequency'))), E('td',{'class':'td'}, renderFreqBar(st.cpu_hw_freq,st.cpu_min_freq,st.cpu_max_freq,st.pll_freq_mhz,st.cpu_governor)) ]),
-					E('tr',{'class':'tr'},[ E('td',{'class':'td','width':'25%'},E('strong',{},_('Control Settings'))), E('td',{'class':'td'}, E('div',{'style':'display:flex;align-items:center;gap:16px;flex-wrap:wrap'},[
-						E('div',{'style':'display:flex;align-items:center;gap:8px'},[
-							E('span',{'style':'font-size:85%;color:#666'},_('Governor')),
-							renderGovSelect(st.cpu_avail_governors,st.cpu_governor)
-						]),
-						E('div',{'style':'display:flex;align-items:center;gap:8px'},[
-							E('span',{'style':'font-size:85%;color:#666'},_('Max Freq')),
-							renderMaxFreqSelect(st.cpu_avail_freqs,st.cpu_max_freq)
-						])
-					])) ]),
-					E('tr',{'class':'tr'},[ E('td',{'class':'td','width':'25%'},E('strong',{},_('Overclock'))), E('td',{'class':'td'}, E('div',{'style':'display:flex;align-items:center;gap:8px;flex-wrap:wrap'},[
-						E('input',{'id':'oc-freq-input','type':'number','min':'500','max':'1600','step':'50','value':'1400','class':'cbi-input-text','style':'width:80px'}),
-						E('span',{'style':'font-size:85%;color:#666'},'MHz'),
-						E('button',{'class':'cbi-button cbi-button-action','click':function(){
-							var f=parseInt(document.getElementById('oc-freq-input').value);
-							if(isNaN(f)||f<500||f>1600){ui.addNotification(null,E('p',{},_('Must be 500-1600 MHz')),'error');return;}
-							if(f>1400&&!confirm('Frequencies above 1400 MHz may be unstable. Continue?')) return;
-							var btn=this;btn.disabled=true;btn.textContent=_('Applying...');
-							callSetOverclock(f).then(function(r){btn.disabled=false;btn.textContent=_('Apply');
-								if(r&&r.error) ui.addNotification(null,E('p',{},_('Failed: ')+r.error),'error');
-								else if(r&&r.result==='ok') ui.addNotification(null,E('p',{},_('CPU set to ')+r.actual_mhz+' MHz'),'info');
-							}).catch(function(e){btn.disabled=false;btn.textContent=_('Apply');});
-						}},_('Apply')),
-						E('span',{'style':'font-size:85%;color:#666'},_('Overclock governor locked to performance. Stock max: 1200 MHz. Recommended max 1500 MHz.'))
-					])) ])
+				E('div',{'class':'cpu-panel-grid'},[
+					E('div',{'class':'cpu-panel-card cpu-info'},[
+						E('div',{'class':'cpu-panel-title'},_('CPU Info')),
+						E('div',{'id':'cpu-info-content','class':'cpu-panel-body cpu-info-line'},buildCpuInfoContent(st))
+					]),
+					E('div',{'class':'cpu-panel-card cpu-frequency'},[
+						E('div',{'class':'cpu-panel-title'},_('Current Frequency')),
+						E('div',{'id':'cpu-freq-content','class':'cpu-panel-body'},renderFreqBar(st.cpu_hw_freq,st.cpu_min_freq,st.cpu_max_freq,st.pll_freq_mhz,st.cpu_governor))
+					])
+				]),
+				E('div',{'class':'cpu-control-grid'},[
+					E('div',{'class':'cpu-panel-card cpu-controls'},[
+						E('div',{'class':'cpu-panel-title'},_('Control Settings')),
+						E('div',{'id':'cpu-control-content','class':'cpu-panel-body'},buildControlSettingsContent(st))
+					]),
+					E('div',{'class':'cpu-panel-card cpu-overclock'},[
+						E('div',{'class':'cpu-panel-title'},'超频 · ≤1200 MHz 安全 · >1200 MHz 有风险'),
+						E('div',{'class':'cpu-panel-body'},renderOcControls())
+					])
 				])
 			]),
 
 			// NPU & Frame Engine (unified)
-			E('div',{'class':'cbi-section'},[
+			E('div',{'class':'cbi-section npu-section'},[
 				E('h3',{},_('NPU & Offload Engine')),
-				E('table',{'class':'table'},[
-					E('tr',{'class':'tr'},[ E('td',{'class':'td','width':'33%'},E('strong',{},_('NPU Status'))),
-						E('td',{'class':'td','id':'npu-status'}, st.npu_loaded ?
-							E('span',{},[E('span',{'class':'offload-badge offload-on'},_('Activated')), st.npu_device ? E('span',{},' ('+st.npu_device+')') : null]) :
-							E('span',{'class':'offload-badge offload-off'},_('Not Activated'))) ]),
-					E('tr',{'class':'tr'},[ E('td',{'class':'td'},E('strong',{},_('Firmware / Clock / Cores'))),
-						E('td',{'class':'td','id':'npu-info'}, (st.npu_version||'N/A')+' | '+(st.npu_clock?(st.npu_clock/1e6).toFixed(0)+' MHz':'N/A')+' | '+(st.npu_cores||0)+' cores') ]),
-					E('tr',{'class':'tr'},[ E('td',{'class':'td'},E('strong',{},_('Reserved Memory'))),
-					E('td',{'class':'td','id':'npu-memory'}, calcTotalMem(memR)+' ('+memR.length+' regions)') ])
-			]),
-			E('div',{'class':'offload-row'},[
+				renderNpuSummary(st),
+				E('div',{'class':'offload-row'},[
 				E('div',{'class':'offload-item'},[
-					E('span',{'class':'soc-text','style':'font-weight:600'},_('VLAN Offload')),
+					E('span',{'class':'offload-name'},[
+						E('span',{'class':'offload-dot'}),
+						E('span',{'class':'soc-text'},'VLAN \u52a0\u901f')
+					]),
 					renderOffloadSelect(vo.enabled, 'vlan-offload-select', function(v){return callSetVlanOffload(v);}, 'vlan-offload-badge')
 				]),
 				E('div',{'class':'offload-item'},[
-					E('span',{'class':'soc-text','style':'font-weight:600'},_('PPPoE Offload')),
+					E('span',{'class':'offload-name'},[
+						E('span',{'class':'offload-dot'}),
+						E('span',{'class':'soc-text'},'PPPoE \u52a0\u901f')
+					]),
 					renderOffloadSelect(ppo.enabled, 'pppoe-offload-select', function(v){return callSetPppoeOffload(v);}, 'pppoe-offload-badge')
 				]),
 				E('div',{'class':'offload-item'},[
-					E('span',{'class':'soc-text','style':'font-weight:600'},_('Flow Offload')),
+					E('span',{'class':'offload-name'},[
+						E('span',{'class':'offload-dot'}),
+						E('span',{'class':'soc-text'},'\u786c\u4ef6\u6d41\u91cf\u52a0\u901f')
+					]),
 					renderOffloadSelect(flo.enabled, 'flow-offload-select', function(v){return callSetFlowOffload(v);}, 'flow-offload-badge')
+				]),
+				E('div',{'class':'offload-item'},[
+					E('span',{'class':'offload-name'},[
+						E('span',{'class':'offload-dot'}),
+						E('span',{'class':'soc-text'},'AP \u6a21\u5f0f\u52a0\u901f')
+					]),
+					renderOffloadSelect(apo.enabled, 'apmode-offload-select', function(v){return callSetApModeOffload(v);}, 'apmode-offload-badge')
 				])
 			]),
 
 				// Frame Engine diagram (includes WiFi bands, PPE flows, NPU indicator)
 				E('div',{'style':'margin-top:12px'},[ E('h4',{'class':'soc-text','style':'font-size:14px;margin-bottom:8px'},_('Frame Engine'))]),
-				E('div',{'id':'fe-container'}, renderFeDiagram(fe, ti, st))
+				E('div',{'id':'fe-container','class':'npu-frame-wrap'}, renderFeDiagram(fe, ti, st))
 			]),
 
 			// PPE Flow Table
-			E('div',{'class':'cbi-section'},[
+			E('div',{'class':'cbi-section npu-section'},[
 				E('h3',{},_('PPE Flow Offload Entries')),
-				E('table',{'class':'table','id':'ppe-entries-table'},[
+				E('table',{'class':'table npu-flow-table','id':'ppe-entries-table'},[
 					E('tr',{'class':'tr cbi-section-table-titles'},[
 						E('th',{'class':'th'},_('Index')), E('th',{'class':'th'},_('State')), E('th',{'class':'th'},_('Type')),
 						E('th',{'class':'th'},_('Original Flow')), E('th',{'class':'th'},_('New Flow')), E('th',{'class':'th'},_('Ethernet'))
@@ -538,36 +691,79 @@ return view.extend({
 			])
 		]);
 
-		poll.add(L.bind(function() {
-			return Promise.all([ callNpuStatus(), callPpeEntries(), callTokenInfo(), callFrameEngine(), callGetVlanOffload(), callGetPppoeOffload(), callGetFlowOffload() ]).then(L.bind(function(d) {
+		// Data fetch + DOM update function — called immediately and via poll
+		// Each RPC call is wrapped with .catch() so one failure doesn't block others
+		function _safeCall(promise, fallback) {
+			return promise.catch(function() { return fallback; });
+		}
+
+		var fetchData = L.bind(function() {
+			return Promise.all([
+				_safeCall(callNpuStatus(), {}),
+				_safeCall(callPpeEntries(), {entries:[]}),
+				_safeCall(callTokenInfo(), {}),
+				_safeCall(callFrameEngine(), {}),
+				_safeCall(callGetVlanOffload(), {enabled:0}),
+				_safeCall(callGetPppoeOffload(), {enabled:0}),
+				_safeCall(callGetFlowOffload(), {enabled:0}),
+				_safeCall(callGetApModeOffload(), {enabled:0})
+			]).then(L.bind(function(d) {
 				injectCSS();
 				var st=d[0]||{}, ppe=d[1]||{}, ti=d[2]||{}, fe=d[3]||{};
 				var vo=d[4]||{enabled:0}, ppo=d[5]||{enabled:0}, flo=d[6]||{enabled:0};
+				var apo=d[7]||{enabled:0};
 				var entries = Array.isArray(ppe.entries)?ppe.entries:[];
+				updateNpuSummary(st);
 
-				updateFreqBar(st.cpu_hw_freq,st.cpu_min_freq,st.cpu_max_freq,st.pll_freq_mhz,st.cpu_governor);
-				var gs=document.getElementById('cpu-governor-select'); if(gs&&!gs.matches(':focus')) gs.value=st.cpu_governor||'';
-				var fs=document.getElementById('cpu-maxfreq-select'); if(fs&&!fs.matches(':focus')) fs.value=(st.cpu_max_freq||0).toString();
+				// CPU info — always re-render (just text spans, no user interaction)
+				var ci = document.getElementById('cpu-info-content');
+				if (ci) { ci.innerHTML = ''; buildCpuInfoContent(st).forEach(function(el) { if (el) ci.appendChild(el); }); }
 
-				var se=document.getElementById('npu-status');
-				if(se){se.innerHTML='';var sp=document.createElement('span');sp.className='offload-badge '+(st.npu_loaded?'offload-on':'offload-off');sp.textContent=st.npu_loaded?_('Activated'):_('Not Activated');se.appendChild(sp);if(st.npu_loaded&&st.npu_device){var dp=document.createElement('span');dp.textContent=' ('+st.npu_device+')';se.appendChild(dp);}}
+				// Freq bar — update in-place if elements exist, otherwise re-render container
+				var freqText = document.getElementById('cpu-freq-text');
+				if (freqText) {
+					updateFreqBar(st.cpu_hw_freq,st.cpu_min_freq,st.cpu_max_freq,st.pll_freq_mhz,st.cpu_governor);
+				} else {
+					var fc = document.getElementById('cpu-freq-content');
+					if (fc) { fc.innerHTML = ''; fc.appendChild(renderFreqBar(st.cpu_hw_freq,st.cpu_min_freq,st.cpu_max_freq,st.pll_freq_mhz,st.cpu_governor)); }
+				}
+
+				// Control settings — update values if selects exist, otherwise re-render container
+				var gs = document.getElementById('cpu-governor-select');
+				if (gs) {
+					if (!gs.matches(':focus')) gs.value = st.cpu_governor || '';
+					var fs = document.getElementById('cpu-maxfreq-select');
+					if (fs && !fs.matches(':focus')) fs.value = (st.cpu_max_freq || 0).toString();
+				} else {
+					var cc = document.getElementById('cpu-control-content');
+					if (cc) { cc.innerHTML = ''; cc.appendChild(buildControlSettingsContent(st)); }
+				}
 
 				function _updateOffload(selectId, badgeId, on) {
+					on = isEnabled(on);
 					var sel = document.getElementById(selectId);
-					if(sel && !sel.matches(':focus')) sel.value = on ? '1' : '0';
+					if(sel && !sel.matches(':focus')) sel.checked = on;
 					var b = document.getElementById(badgeId);
-					if(b) { b.className = 'offload-badge '+(on?'offload-on':'offload-off'); b.textContent = on?_('Enabled'):_('Disabled'); }
+					if(b) { b.className = 'offload-badge '+(on?'offload-on':'offload-off'); b.textContent = on?'\u5df2\u5f00\u542f':'\u5df2\u7981\u7528'; }
 				}
 				_updateOffload('vlan-offload-select', 'vlan-offload-badge', vo.enabled);
 				_updateOffload('pppoe-offload-select', 'pppoe-offload-badge', ppo.enabled);
 				_updateOffload('flow-offload-select', 'flow-offload-badge', flo.enabled);
+				_updateOffload('apmode-offload-select', 'apmode-offload-badge', apo.enabled);
 
-				var fc=document.getElementById('fe-container'); if(fc){fc.innerHTML='';fc.appendChild(renderFeDiagram(fe, ti, st));}
+				var fcEl=document.getElementById('fe-container'); if(fcEl){fcEl.innerHTML='';fcEl.appendChild(renderFeDiagram(fe, ti, st));}
 
 				var tb=document.getElementById('ppe-entries-table');
 				if(tb){while(tb.rows.length>1)tb.deleteRow(1);renderPpeRows(entries).forEach(function(r){tb.appendChild(r);});}
-			},this));
-		},this), 5);
+			},this)).catch(function(err) {
+				console.error('[airoha_npu] fetchData error:', err);
+			});
+		}, this);
+
+		// Fetch data immediately (page shows with defaults, then updates)
+		fetchData();
+		// Poll for periodic updates
+		poll.add(fetchData, 5);
 
 		return view;
 	},
