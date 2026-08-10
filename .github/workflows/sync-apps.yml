@@ -19,7 +19,6 @@ permissions:
 jobs:
   sync-target:
     runs-on: ubuntu-latest
-    # 1. 在 job 级别统一设置环境变量
     env:
       FOLDERS: "luci-app-airoha-fancontrol luci-app-airoha-flowsense luci-app-airoha-npu"
 
@@ -28,6 +27,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      # 💡 核心修改：在修改任何文件前，先同步远程并 Rebase，保证本地工作区是干净且基于最新代码的
+      - name: Git Fetch and Rebase
+        run: |
+          echo "=== 推送前同步远程并变基 ==="
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git fetch origin
+          # 尝试 rebase，如果当前分支就是 main 且落后，它会自动变基；如果没有冲突直接成功
+          git rebase origin/main || git rebase --abort
 
       - name: Clone XR1710G Source
         if: github.event.inputs.action != 'clear'
@@ -42,7 +51,6 @@ jobs:
         if: github.event.inputs.action != 'clear'
         run: |
           echo "=== 检查源仓库中文件夹路径 ==="
-          # 直接使用环境变量 $FOLDERS
           for dir in $FOLDERS; do
             if [ -d "./tmp-xr1710g-source/$dir" ]; then
               echo "✅ 源仓库根目录找到: $dir"
@@ -66,7 +74,6 @@ jobs:
             echo ""
             echo "--> 处理目标路径: $TARGET_PATH"
 
-            # 1. 寻找源路径（兼容根目录、apps/ 和 package/ 目录）
             SRC_PATH=""
             if [ -d "./tmp-xr1710g-source/$dir" ]; then
               SRC_PATH="./tmp-xr1710g-source/$dir"
@@ -81,7 +88,6 @@ jobs:
               continue
             fi
 
-            # 2. 对比差异并更新
             if [ -d "$TARGET_PATH" ]; then
               if diff -r -x ".git" "$SRC_PATH" "$TARGET_PATH" > /dev/null 2>&1; then
                 echo "ℹ️ 内容与源仓库完全相同，无需更新: $dir"
@@ -118,8 +124,6 @@ jobs:
         if: github.event.inputs.action == 'clear'
         run: |
           echo "=== 清理 apps/ 下的目标文件夹及备份文件 ==="
-
-          # 1. 删除指定的目标文件夹及其 .bak 文件夹
           for dir in $FOLDERS; do
             if [ -d "apps/$dir" ]; then
               rm -rf "apps/$dir"
@@ -131,38 +135,18 @@ jobs:
             fi
           done
 
-          # 2. 扫尾：清理 apps/ 目录下任何残留的 *.bak 目录和文件
           if [ -d "apps" ]; then
             find apps/ -name "*.bak" -exec rm -rf {} + 2>/dev/null || true
             echo "✅ 已彻底扫描并清理所有残留的 *.bak 文件及目录"
           fi
 
-          echo ""
-          echo "正在提交清理..."
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add apps/ 2>/dev/null || true
-          git commit -m "clear: remove airoha luci apps and backup files from apps/ ($(date +%Y%m%d))" || echo "无需提交"
-
-          echo ""
-          echo "=== 推送前同步远程 ==="
-          git fetch origin
-          git rebase origin/main
-          git push || echo "推送失败"
-          echo "✅ 清理完成"
-
       - name: Commit and Push
-        if: github.event.inputs.action == 'sync'
         run: |
-          echo "=== 推送前同步远程 ==="
-          git fetch origin
-          git rebase origin/main
-          echo ""
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          echo "=== 提交并推送更改 ==="
           git add apps/
-          git commit -m "sync: airoha luci apps into apps/ from naoki66/ImmortalWrt-for-Gemtek-XR1710G ($(date +%Y%m%d))" || echo "无需提交"
+          git commit -m "${{ github.event.inputs.action }}: airoha luci apps update/clear ($(date +%Y%m%d))" || echo "无需提交"
           git push || echo "推送失败"
-          echo "✅ 同步完成"
-
+          echo "✅ 操作完成"
+          
+          # 清理临时目录
           rm -rf tmp-xr1710g-source
