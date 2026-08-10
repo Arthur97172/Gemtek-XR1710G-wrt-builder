@@ -105,11 +105,11 @@ jobs:
             git clone --depth=1 -b master \
               https://github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G.git /tmp/naoki
             
-            echo ">>> 复制 naoki66 的前 3 个插件..."
+            echo ">>> 复制 naoki66 的 3 个插件（flowsense, npu, fancontrol）..."
             for pkg in \
               luci-app-airoha-flowsense \
               luci-app-airoha-npu \
-              luci-app-w1700k-fancontrol
+              luci-app-airoha-fancontrol
             do
               SRC_PATH=""
               if [ -d "/tmp/naoki/package/$pkg" ]; then
@@ -160,25 +160,39 @@ jobs:
           set -e
           cd sdk
           
+          SDK_SRC="${{ github.event.inputs.sdk_source }}"
+          
           echo "CONFIG_PACKAGE_luci-app-airoha-flowsense=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-airoha-npu=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-mlo=m" >> .config
-          echo "CONFIG_PACKAGE_luci-app-w1700k-fancontrol=m" >> .config
+          
+          if [ "$SDK_SRC" = "OpenWrt" ]; then
+            echo "CONFIG_PACKAGE_luci-app-w1700k-fancontrol=m" >> .config
+          else
+            echo "CONFIG_PACKAGE_luci-app-airoha-fancontrol=m" >> .config
+          fi
           
           make defconfig
           echo "配置完成"
 
-      - name: Compile all 4 packages
+      - name: Compile packages
         run: |
           set -e
           cd sdk
           
-          for pkg in \
-            luci-app-airoha-flowsense \
-            luci-app-airoha-npu \
-            luci-app-mlo \
-            luci-app-w1700k-fancontrol
-          do
+          SDK_SRC="${{ github.event.inputs.sdk_source }}"
+          
+          # 基础的 3 个公共插件
+          PLUGINS="luci-app-airoha-flowsense luci-app-airoha-npu luci-app-mlo"
+          
+          # 根据不同来源拼接对应的风扇插件
+          if [ "$SDK_SRC" = "OpenWrt" ]; then
+            PLUGINS="$PLUGINS luci-app-w1700k-fancontrol"
+          else
+            PLUGINS="$PLUGINS luci-app-airoha-fancontrol"
+          fi
+          
+          for pkg in $PLUGINS; do
             echo ""
             echo "======== 开始编译 $pkg ========"
             make package/$pkg/compile V=s -j$(nproc) || make package/$pkg/compile V=s -j1
@@ -193,7 +207,7 @@ jobs:
           
           find sdk/bin -name "*.apk" | while read -r f; do
             case "$(basename "$f")" in
-              *airoha*|*w1700k*|*mlo*)
+              *airoha*|*mlo*)
                 cp -v "$f" output/
                 ;;
             esac
@@ -212,7 +226,6 @@ jobs:
           name: luci-apps-${{ github.event.inputs.sdk_source }}-an7581
           path: |
             output/*airoha*.apk
-            output/*w1700k*.apk
             output/*mlo*.apk
           if-no-files-found: error
           retention-days: 30
