@@ -225,11 +225,16 @@ jobs:
         with:
           name: luci-apps-${{ github.event.inputs.sdk_source }}-an7581
           path: |
-            output/*airoha-flowsense*.apk
-            output/*mlo*.apk
-            output/*airoha-npu*.apk
-            output/*w1700k-fancontrol*.apk
-            output/*airoha-fancontrol*.apk
+            output/luci-app-airoha-flowsense*.apk
+            output/luci-i18n-airoha-flowsense-zh-cn*.apk            
+            output/luci-app-airoha-npu*.apk
+            output/luci-i18n-airoha-npu-zh-cn*.apk
+            output/luci-app-w1700k-fancontrol*.apk
+            output/luci-i18n-w1700k-fancontrol*.apk
+            output/luci-app-airoha-fancontrol*.apk
+            output/luci-i18n-airoha-fancontrol*.apk
+            output/luci-app-mlo*.apk
+            output/luci-i18n-mlo-zh-cn*.apk
           if-no-files-found: error
           retention-days: 30
 
