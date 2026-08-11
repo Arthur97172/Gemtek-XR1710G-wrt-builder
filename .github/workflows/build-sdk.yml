@@ -108,7 +108,7 @@ jobs:
             echo ">>> 复制 naoki66 的 3 个插件（flowsense, npu, fancontrol）..."
             for pkg in \
               luci-app-airoha-flowsense \
-              luci-app-airoha-npu \         
+              luci-app-airoha-npu \    
               luci-app-airoha-fancontrol
             do
               SRC_PATH=""
