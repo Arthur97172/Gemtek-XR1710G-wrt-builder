@@ -225,8 +225,11 @@ jobs:
         with:
           name: luci-apps-${{ github.event.inputs.sdk_source }}-an7581
           path: |
-            output/*airoha*.apk
+            output/*airoha-flowsense*.apk
             output/*mlo*.apk
+            output/*airoha-npu*.apk
+            output/*w1700k-fancontrol*.apk
+
           if-no-files-found: error
           retention-days: 30
 
